@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.MessageDeliveryException;
@@ -18,8 +19,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ConversationNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(ConversationNotFoundException exception) {
+    @ExceptionHandler({
+            ConversationNotFoundException.class,
+            StoreNotFoundException.class,
+            ProductNotFoundException.class,
+            CategoryNotFoundException.class,
+            OrderNotFoundException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException exception) {
         return error(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
@@ -28,9 +35,14 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
-    @ExceptionHandler({UnauthorizedParticipantException.class, AccessDeniedException.class})
+    @ExceptionHandler({UnauthorizedParticipantException.class, UnauthorizedOwnerException.class, AccessDeniedException.class})
     public ResponseEntity<Map<String, Object>> handleForbidden(RuntimeException exception) {
         return error(HttpStatus.FORBIDDEN, exception.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateStoreException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateStore(DuplicateStoreException exception) {
+        return error(HttpStatus.CONFLICT, exception.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -44,6 +56,25 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException exception) {
+        return error(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler({
+            InsufficientStockException.class,
+            InvalidOrderStatusTransitionException.class,
+            CannotCancelOrderException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleOrderBadRequest(RuntimeException exception) {
+        return error(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException exception) {
+        return error(HttpStatus.CONFLICT, exception.getMostSpecificCause().getMessage());
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException exception) {
         return error(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 

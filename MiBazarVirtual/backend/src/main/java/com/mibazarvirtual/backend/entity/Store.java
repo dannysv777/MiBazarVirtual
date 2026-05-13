@@ -50,6 +50,15 @@ public class Store {
     @Column(length = 255)
     private String address;
 
+    @Column(length = 100)
+    private String city;
+
+    @Column(length = 20)
+    private String phone;
+
+    @Column(length = 160)
+    private String schedule;
+
     @Column(precision = 10, scale = 7)
     private BigDecimal latitude;
 

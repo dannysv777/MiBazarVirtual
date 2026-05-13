@@ -6,6 +6,7 @@ public record CategoryDTO(
         Long id,
         Long parentId,
         String name,
+        String description,
         String slug,
         String iconUrl,
         int sortOrder
@@ -15,6 +16,7 @@ public record CategoryDTO(
                 category.getId(),
                 category.getParent() == null ? null : category.getParent().getId(),
                 category.getName(),
+                category.getDescription(),
                 category.getSlug(),
                 category.getIconUrl(),
                 category.getSortOrder()

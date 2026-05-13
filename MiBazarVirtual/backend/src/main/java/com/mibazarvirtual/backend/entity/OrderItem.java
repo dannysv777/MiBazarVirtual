@@ -1,3 +1,4 @@
+// src/main/java/com/mibazarvirtual/backend/entity/OrderItem.java
 package com.mibazarvirtual.backend.entity;
 
 import jakarta.persistence.Column;

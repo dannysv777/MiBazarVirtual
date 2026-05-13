@@ -5,18 +5,38 @@ import com.mibazarvirtual.backend.entity.Product;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByIdAndStatus(Long id, Product.Status status);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Product p where p.id = :id")
+    Optional<Product> findLockedById(@Param("id") Long id);
 
     Page<Product> findByStatus(Product.Status status, Pageable pageable);
 
     Page<Product> findByStoreIdAndStatus(Long storeId, Product.Status status, Pageable pageable);
 
     Page<Product> findByCategoryIdAndStatus(Long categoryId, Product.Status status, Pageable pageable);
+
+    boolean existsByCategoryId(Long categoryId);
+
+    @Query("""
+            select p
+            from Product p
+            where p.store.user.id = :sellerId
+              and p.status <> :status
+            """)
+    Page<Product> findSellerProducts(
+            @Param("sellerId") Long sellerId,
+            @Param("status") Product.Status status,
+            Pageable pageable
+    );
 
     @Query("""
             select p

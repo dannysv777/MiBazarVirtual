@@ -1,3 +1,4 @@
+// src/main/java/com/mibazarvirtual/backend/entity/Order.java
 package com.mibazarvirtual.backend.entity;
 
 import jakarta.persistence.Column;
@@ -44,7 +45,7 @@ public class Order {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "order_type", nullable = false)
-    private OrderType orderType = OrderType.DELIVERY;
+    private DeliveryType deliveryType = DeliveryType.DELIVERY;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal subtotal;
@@ -87,7 +88,7 @@ public class Order {
         PENDING, CONFIRMED, IN_PROGRESS, DELIVERED, CANCELLED
     }
 
-    public enum OrderType {
+    public enum DeliveryType {
         DELIVERY, PICKUP
     }
 

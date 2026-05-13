@@ -37,4 +37,10 @@ public class AuthenticatedUserResolver {
                 .map(User::getId)
                 .orElseThrow(() -> new MessageDeliveryException("Unauthorized"));
     }
+
+    public User currentUser(Authentication authentication) {
+        Long userId = currentUserId(authentication);
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new MessageDeliveryException("Unauthorized"));
+    }
 }

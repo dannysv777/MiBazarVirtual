@@ -31,6 +31,9 @@ public class Category {
     @Column(nullable = false, length = 80)
     private String name;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Column(nullable = false, unique = true, length = 80)
     private String slug;
 

@@ -9,4 +9,8 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     List<Store> findByStatusOrderByRatingAvgDescNameAsc(Store.Status status);
 
     Optional<Store> findByIdAndStatus(Long id, Store.Status status);
+
+    Optional<Store> findByUserId(Long userId);
+
+    boolean existsByUserId(Long userId);
 }
