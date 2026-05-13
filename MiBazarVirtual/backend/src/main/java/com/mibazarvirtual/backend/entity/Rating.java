@@ -42,7 +42,7 @@ public class Rating {
     private Store store;
 
     @Column(nullable = false)
-    private Integer score;
+    private Byte score;
 
     @Column(columnDefinition = "TEXT")
     private String comment;

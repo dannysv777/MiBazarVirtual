@@ -3,6 +3,7 @@ package com.mibazarvirtual.backend.exception;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConversationNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(ConversationNotFoundException exception) {
+        return error(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleEntityNotFound(EntityNotFoundException exception) {
         return error(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
