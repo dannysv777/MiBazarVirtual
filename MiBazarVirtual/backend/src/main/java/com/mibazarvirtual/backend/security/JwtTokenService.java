@@ -65,7 +65,7 @@ public class JwtTokenService {
                         .or(() -> userRepository.findByUsername(claims.getSubject()))
                         .orElseThrow(() -> new MessageDeliveryException("Unauthorized"));
 
-        return new UserPrincipal(user.getId(), user.getUsername());
+        return new UserPrincipal(user.getId(), user.getUsername(), user.getRole().name());
     }
 
     private String normalizeToken(String rawToken) {

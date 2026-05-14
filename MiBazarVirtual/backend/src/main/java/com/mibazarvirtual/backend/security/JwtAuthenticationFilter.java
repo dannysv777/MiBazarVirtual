@@ -5,9 +5,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -30,7 +30,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 UserPrincipal principal = jwtTokenService.authenticate(authorization);
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(principal, null, List.of());
+                        new UsernamePasswordAuthenticationToken(
+                                principal,
+                                null,
+                                java.util.List.of(new SimpleGrantedAuthority("ROLE_" + principal.role()))
+                        );
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (RuntimeException ignored) {
