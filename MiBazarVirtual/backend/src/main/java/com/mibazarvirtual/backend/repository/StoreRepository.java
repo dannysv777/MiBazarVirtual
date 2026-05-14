@@ -13,4 +13,6 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     Optional<Store> findByUserId(Long userId);
 
     boolean existsByUserId(Long userId);
+
+    long countByStatus(Store.Status status);
 }

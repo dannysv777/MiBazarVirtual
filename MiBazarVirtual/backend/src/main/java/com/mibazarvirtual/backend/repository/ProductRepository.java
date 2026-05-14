@@ -5,13 +5,14 @@ import com.mibazarvirtual.backend.entity.Product;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
     Optional<Product> findByIdAndStatus(Long id, Product.Status status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -25,6 +26,18 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByCategoryIdAndStatus(Long categoryId, Product.Status status, Pageable pageable);
 
     boolean existsByCategoryId(Long categoryId);
+
+    long countByStatus(Product.Status status);
+
+    @Query(value = """
+            SELECT
+                COUNT(*) AS totalProducts,
+                COALESCE(SUM(CASE WHEN status = 'ACTIVE' THEN 1 ELSE 0 END), 0) AS activeProducts,
+                COALESCE(SUM(CASE WHEN stock = 0 AND status <> 'DELETED' THEN 1 ELSE 0 END), 0) AS outOfStockProducts
+            FROM products
+            WHERE store_id = :storeId
+            """, nativeQuery = true)
+    ProductStatsProjection getProductStatsByStoreId(@Param("storeId") Long storeId);
 
     @Query("""
             select p
@@ -53,4 +66,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("status") Product.Status status,
             Pageable pageable
     );
+
+    interface ProductStatsProjection {
+        long getTotalProducts();
+
+        long getActiveProducts();
+
+        long getOutOfStockProducts();
+    }
 }

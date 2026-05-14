@@ -10,4 +10,6 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     Optional<Conversation> findByBuyerIdAndSellerIdAndProductId(Long buyerId, Long sellerId, Long productId);
 
     List<Conversation> findByBuyerIdOrSellerIdOrderByUpdatedAtDesc(Long buyerId, Long sellerId);
+
+    long countByBuyerIdOrSellerId(Long buyerId, Long sellerId);
 }

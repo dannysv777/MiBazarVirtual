@@ -40,6 +40,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.FORBIDDEN, exception.getMessage());
     }
 
+    @ExceptionHandler(UnauthorizedReviewException.class)
+    public ResponseEntity<Map<String, Object>> handleUnauthorizedReview(UnauthorizedReviewException exception) {
+        return error(HttpStatus.FORBIDDEN, exception.getMessage());
+    }
+
     @ExceptionHandler(DuplicateStoreException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateStore(DuplicateStoreException exception) {
         return error(HttpStatus.CONFLICT, exception.getMessage());
@@ -62,7 +67,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             InsufficientStockException.class,
             InvalidOrderStatusTransitionException.class,
-            CannotCancelOrderException.class
+            CannotCancelOrderException.class,
+            OrderNotDeliveredException.class,
+            AlreadyReviewedException.class
     })
     public ResponseEntity<Map<String, Object>> handleOrderBadRequest(RuntimeException exception) {
         return error(HttpStatus.BAD_REQUEST, exception.getMessage());

@@ -7,6 +7,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,15 +19,27 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductDTO> getProducts(String query, Long categoryId, Pageable pageable) {
-        Page<Product> products;
-        if (query != null && !query.isBlank()) {
-            products = productRepository.searchActiveProducts(query.trim(), Product.Status.ACTIVE, pageable);
-        } else if (categoryId != null) {
-            products = productRepository.findByCategoryIdAndStatus(categoryId, Product.Status.ACTIVE, pageable);
-        } else {
-            products = productRepository.findByStatus(Product.Status.ACTIVE, pageable);
-        }
-        return products.map(ProductDTO::from);
+        return getProducts(query, categoryId, null, null, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProductDTO> getProducts(
+            String query,
+            Long categoryId,
+            Long storeId,
+            Double minPrice,
+            Double maxPrice,
+            Boolean inStock,
+            Pageable pageable
+    ) {
+        Specification<Product> specification = ProductSpecification.active()
+                .and(ProductSpecification.textSearch(query))
+                .and(ProductSpecification.category(categoryId))
+                .and(ProductSpecification.store(storeId))
+                .and(ProductSpecification.minPrice(minPrice))
+                .and(ProductSpecification.maxPrice(maxPrice))
+                .and(ProductSpecification.inStock(inStock));
+        return productRepository.findAll(specification, pageable).map(ProductDTO::from);
     }
 
     @Transactional(readOnly = true)
