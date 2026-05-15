@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 import { colors, spacing, typography } from '../../theme';
 
@@ -25,7 +26,7 @@ export default function CategoryChip({ category, isActive = false, onPress }) {
   });
 
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress}>
+    <TouchableOpacity activeOpacity={0.85} onPress={handlePress}>
       <Animated.View style={[styles.chip, { backgroundColor }]}>
         <Animated.Text style={[styles.text, { color: textColor }]}>
           {category.icon ? `${category.icon} ` : ''}{category.name}
@@ -47,3 +48,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+  const handlePress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress?.();
+  };

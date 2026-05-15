@@ -15,6 +15,7 @@ import AppBadge from '../../components/common/AppBadge';
 import AppButton from '../../components/common/AppButton';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
+import * as chatApi from '../../api/chatApi';
 import { getProduct } from '../../api/productsApi';
 import { useCart } from '../../context/CartContext';
 import { colors, shadows, spacing, typography } from '../../theme';
@@ -28,6 +29,7 @@ const getStore = (product) => product?.store ?? {
   id: product?.storeId,
   name: product?.storeName,
   rating: product?.storeRating,
+  sellerId: product?.sellerId,
 };
 
 export default function ProductDetailScreen({ navigation, route }) {
@@ -36,6 +38,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [startingChat, setStartingChat] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
 
@@ -92,9 +95,33 @@ export default function ProductDetailScreen({ navigation, route }) {
     addItem(product, quantity);
   };
 
-  const handleChat = () => {
-    // TODO Part 3: navigation.navigate('Chat', { conversationId, otherUsername, productId });
-    Alert.alert('Chat', 'El chat se conectará en la Parte 3.');
+  const handleChat = async () => {
+    const sellerId = store?.sellerId ?? product?.sellerId;
+
+    if (!sellerId) {
+      Alert.alert('Error', 'No encontramos el vendedor de este producto.');
+      return;
+    }
+
+    setStartingChat(true);
+
+    try {
+      const response = await chatApi.startConversation({
+        productId: product.id,
+        sellerId,
+      });
+      const conversation = getPayload(response);
+
+      navigation.navigate('Chat', {
+        conversationId: conversation.id,
+        otherUsername: store?.name ?? conversation.otherParticipantUsername ?? 'Tienda',
+        productId: product.id,
+      });
+    } catch (chatError) {
+      Alert.alert('Error', getErrorMessage(chatError, 'No se pudo iniciar la conversación.'));
+    } finally {
+      setStartingChat(false);
+    }
   };
 
   return (
@@ -175,8 +202,8 @@ export default function ProductDetailScreen({ navigation, route }) {
         <View style={styles.cartButtonWrap}>
           <AppButton title="Agregar al carrito" onPress={handleAddToCart} disabled={stock === 0} fullWidth />
         </View>
-        <TouchableOpacity activeOpacity={0.85} onPress={handleChat} style={styles.chatButton}>
-          <Ionicons name="chatbubble-outline" size={20} color={colors.secondary} />
+        <TouchableOpacity activeOpacity={0.85} disabled={startingChat} onPress={handleChat} style={styles.chatButton}>
+          <Ionicons name={startingChat ? 'ellipsis-horizontal' : 'chatbubble-outline'} size={20} color={colors.secondary} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>

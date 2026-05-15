@@ -1,14 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import { colors, spacing, typography } from '../theme';
+import { colors, spacing } from '../theme';
 import { useCart } from '../context/CartContext';
+import { useChat } from '../context/ChatContext';
 import CartScreen from '../screens/cart/CartScreen';
+import ChatScreen from '../screens/chat/ChatScreen';
+import ConversationsScreen from '../screens/chat/ConversationsScreen';
 import HomeScreen from '../screens/home/HomeScreen';
 import OrderDetailScreen from '../screens/orders/OrderDetailScreen';
 import OrdersScreen from '../screens/orders/OrdersScreen';
+import ProfileScreen from '../screens/profile/ProfileScreen';
 import ProductDetailScreen from '../screens/products/ProductDetailScreen';
 import ProductListScreen from '../screens/products/ProductListScreen';
 import StoreDetailScreen from '../screens/stores/StoreDetailScreen';
@@ -28,11 +32,13 @@ const tabIcons = {
   Buscar: ['search', 'search-outline'],
   Carrito: ['cart', 'cart-outline'],
   Pedidos: ['receipt', 'receipt-outline'],
+  Mensajes: ['chatbubble', 'chatbubble-outline'],
   Perfil: ['person', 'person-outline'],
 };
 
 export default function MainTabs() {
   const { itemCount } = useCart();
+  const { unreadCount } = useChat();
 
   return (
     <Tab.Navigator
@@ -60,9 +66,13 @@ export default function MainTabs() {
         component={OrdersStack}
       />
       <Tab.Screen
+        name="Mensajes"
+        component={ChatStack}
+        options={{ tabBarBadge: unreadCount > 0 ? unreadCount : undefined }}
+      />
+      <Tab.Screen
         name="Perfil"
-        component={PlaceholderScreen}
-        initialParams={{ text: 'Perfil - Parte 3' }}
+        component={ProfileStack}
       />
     </Tab.Navigator>
   );
@@ -75,6 +85,7 @@ function HomeCatalogStack() {
       <Stack.Screen name="ProductList" component={ProductListScreen} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+      <Stack.Screen name="Chat" component={ChatScreen} />
     </Stack.Navigator>
   );
 }
@@ -85,6 +96,7 @@ function SearchCatalogStack() {
       <Stack.Screen name="ProductList" component={ProductListScreen} initialParams={{ title: 'Productos' }} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+      <Stack.Screen name="Chat" component={ChatScreen} />
     </Stack.Navigator>
   );
 }
@@ -99,11 +111,21 @@ function OrdersStack() {
   );
 }
 
-function PlaceholderScreen({ route }) {
+function ChatStack() {
   return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderText}>{route.params?.text}</Text>
-    </View>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Conversations" component={ConversationsScreen} />
+      <Stack.Screen name="Chat" component={ChatScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function ProfileStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+    </Stack.Navigator>
   );
 }
 
@@ -123,16 +145,5 @@ const styles = StyleSheet.create({
   tabBarLabel: {
     fontSize: 11,
     fontWeight: '600',
-  },
-  placeholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: spacing.md,
-  },
-  placeholderText: {
-    ...typography.h3,
-    color: colors.textSecondary,
   },
 });

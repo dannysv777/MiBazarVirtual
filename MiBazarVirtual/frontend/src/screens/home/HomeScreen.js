@@ -22,6 +22,7 @@ import { getCategories } from '../../api/categoriesApi';
 import { getProducts } from '../../api/productsApi';
 import { getStores } from '../../api/storesApi';
 import { useAuth } from '../../context/AuthContext';
+import { useChat } from '../../context/ChatContext';
 import { colors, spacing, typography } from '../../theme';
 import { getErrorMessage, getList } from '../../utils/apiResponse';
 
@@ -29,14 +30,13 @@ const allCategory = { id: 0, name: 'Todos', icon: '✨' };
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
+  const { unreadCount } = useChat();
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const unreadCount = 0;
-  // TODO Part 3: show unread message count badge
 
   const loadHomeData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -84,9 +84,13 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.greeting}>Buenos días 👋</Text>
             <Text style={styles.userName}>{user?.fullName ?? user?.username ?? 'Invitado'}</Text>
           </View>
-          <TouchableOpacity activeOpacity={0.8} style={styles.bellButton}>
+          <TouchableOpacity activeOpacity={0.8} style={styles.bellButton} onPress={() => navigation.navigate('Mensajes')}>
             <Ionicons name="notifications-outline" size={26} color={colors.textPrimary} />
-            {unreadCount > 0 ? <View style={styles.unreadBadge} /> : null}
+            {unreadCount > 0 ? (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            ) : null}
           </TouchableOpacity>
         </View>
 
@@ -101,7 +105,11 @@ export default function HomeScreen({ navigation }) {
 
         {error ? (
           <View style={styles.errorCard}>
+            <Ionicons name="alert-circle" size={20} color={colors.error} />
             <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity activeOpacity={0.75} onPress={() => loadHomeData()}>
+              <Text style={styles.retryText}>Reintentar</Text>
+            </TouchableOpacity>
           </View>
         ) : null}
 
@@ -239,12 +247,20 @@ const styles = StyleSheet.create({
   },
   unreadBadge: {
     position: 'absolute',
-    top: 9,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 6,
+    right: 6,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9,
     backgroundColor: colors.error,
+    paddingHorizontal: 3,
+  },
+  unreadBadgeText: {
+    ...typography.tiny,
+    color: colors.surface,
+    fontWeight: '700',
   },
   searchWrap: {
     paddingHorizontal: spacing.md,
@@ -268,6 +284,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
     padding: spacing.md,
@@ -276,7 +295,13 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.small,
+    flex: 1,
     color: colors.error,
+  },
+  retryText: {
+    ...typography.small,
+    color: colors.error,
+    fontWeight: '700',
   },
   sectionHeader: {
     flexDirection: 'row',

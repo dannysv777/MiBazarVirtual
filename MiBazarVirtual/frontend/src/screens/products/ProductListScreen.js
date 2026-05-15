@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
@@ -24,7 +25,7 @@ const filtersConfig = [
   { key: 'inStock', label: 'En stock', params: { inStock: true } },
   { key: 'priceAsc', label: 'Precio ↑', params: { sortBy: 'price_asc' } },
   { key: 'priceDesc', label: 'Precio ↓', params: { sortBy: 'price_desc' } },
-  { key: 'recent', label: 'Recientes', params: { sortBy: 'recent' } },
+  { key: 'recent', label: 'Recientes', params: { sortBy: 'newest' } },
   { key: 'az', label: 'A-Z', params: { sortBy: 'name_asc' } },
 ];
 
@@ -92,6 +93,11 @@ export default function ProductListScreen({ navigation, route }) {
     setSubmittedQuery(search);
   };
 
+  const handleFilterPress = async (filterKey) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveFilter((current) => (current === filterKey ? null : filterKey));
+  };
+
   const handleLoadMore = () => {
     if (!loadingMore && !loading && hasMore) {
       loadProducts({ nextPage: page + 1, append: true });
@@ -122,7 +128,7 @@ export default function ProductListScreen({ navigation, route }) {
             <TouchableOpacity
               key={filter.key}
               activeOpacity={0.8}
-              onPress={() => setActiveFilter((current) => (current === filter.key ? null : filter.key))}
+              onPress={() => handleFilterPress(filter.key)}
               style={[styles.filterChip, selected ? styles.filterActive : styles.filterIdle]}
             >
               <Text style={[styles.filterText, selected ? styles.filterTextActive : styles.filterTextIdle]}>{filter.label}</Text>
@@ -133,12 +139,18 @@ export default function ProductListScreen({ navigation, route }) {
 
       {error ? (
         <View style={styles.errorCard}>
+          <Ionicons name="alert-circle" size={20} color={colors.error} />
           <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity activeOpacity={0.75} onPress={() => loadProducts({ nextPage: 0 })}>
+            <Text style={styles.retryText}>Reintentar</Text>
+          </TouchableOpacity>
         </View>
       ) : null}
 
       {loading ? (
         <View style={styles.gridSkeleton}>
+          <SkeletonLoader width="48%" height={220} borderRadius={16} />
+          <SkeletonLoader width="48%" height={220} borderRadius={16} />
           <SkeletonLoader width="48%" height={220} borderRadius={16} />
           <SkeletonLoader width="48%" height={220} borderRadius={16} />
           <SkeletonLoader width="48%" height={220} borderRadius={16} />
@@ -218,6 +230,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     marginHorizontal: spacing.md,
     padding: spacing.md,
     borderRadius: 12,
@@ -225,7 +240,13 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.small,
+    flex: 1,
     color: colors.error,
+  },
+  retryText: {
+    ...typography.small,
+    color: colors.error,
+    fontWeight: '700',
   },
   gridSkeleton: {
     flexDirection: 'row',

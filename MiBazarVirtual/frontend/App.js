@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
+import { ChatProvider } from './src/context/ChatContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
@@ -11,8 +12,10 @@ export default function App() {
     <GestureHandlerRootView style={styles.root}>
       <AuthProvider>
         <CartProvider>
-          <StatusBar style="auto" />
-          <AppNavigator />
+          <ChatProvider>
+            <StatusBar style="auto" />
+            <AppNavigator />
+          </ChatProvider>
         </CartProvider>
       </AuthProvider>
     </GestureHandlerRootView>
