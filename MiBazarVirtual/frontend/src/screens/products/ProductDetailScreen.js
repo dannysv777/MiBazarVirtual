@@ -16,6 +16,7 @@ import AppButton from '../../components/common/AppButton';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import { getProduct } from '../../api/productsApi';
+import { useCart } from '../../context/CartContext';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { formatPrice, getErrorMessage, getPayload } from '../../utils/apiResponse';
 
@@ -31,6 +32,7 @@ const getStore = (product) => product?.store ?? {
 
 export default function ProductDetailScreen({ navigation, route }) {
   const { productId } = route.params;
+  const { addItem } = useCart();
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -87,8 +89,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   const canToggleDescription = description.length > 100;
 
   const handleAddToCart = () => {
-    // TODO Part 2: const { addItem } = useCart(); addItem(product, quantity);
-    Alert.alert('Carrito', 'El carrito se conectará en la Parte 2.');
+    addItem(product, quantity);
   };
 
   const handleChat = () => {

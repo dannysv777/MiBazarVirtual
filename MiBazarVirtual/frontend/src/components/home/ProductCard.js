@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { colors, shadows, spacing, typography } from '../../theme';
+import { useCart } from '../../context/CartContext';
 
 const cardWidth = (Dimensions.get('window').width - 48) / 2;
 
@@ -18,9 +19,10 @@ const formatPrice = (price) => `Q ${Number(price ?? 0).toFixed(2)}`;
 
 export default function ProductCard({ product, onPress }) {
   const imageUrl = getProductImage(product);
+  const { addItem } = useCart();
 
   const handleAddPress = () => {
-    // TODO Part 2: const { addItem } = useCart(); addItem(product, 1);
+    addItem(product, 1);
   };
 
   return (

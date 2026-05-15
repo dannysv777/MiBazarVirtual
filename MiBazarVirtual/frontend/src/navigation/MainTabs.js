@@ -4,7 +4,11 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../theme';
+import { useCart } from '../context/CartContext';
+import CartScreen from '../screens/cart/CartScreen';
 import HomeScreen from '../screens/home/HomeScreen';
+import OrderDetailScreen from '../screens/orders/OrderDetailScreen';
+import OrdersScreen from '../screens/orders/OrdersScreen';
 import ProductDetailScreen from '../screens/products/ProductDetailScreen';
 import ProductListScreen from '../screens/products/ProductListScreen';
 import StoreDetailScreen from '../screens/stores/StoreDetailScreen';
@@ -28,8 +32,7 @@ const tabIcons = {
 };
 
 export default function MainTabs() {
-  const cartCount = 0;
-  // TODO Part 2: const { itemCount } = useCart(); use itemCount for badge
+  const { itemCount } = useCart();
 
   return (
     <Tab.Navigator
@@ -49,14 +52,12 @@ export default function MainTabs() {
       <Tab.Screen name="Buscar" component={SearchCatalogStack} />
       <Tab.Screen
         name="Carrito"
-        component={PlaceholderScreen}
-        initialParams={{ text: 'Carrito - Parte 2' }}
-        options={{ tabBarBadge: cartCount > 0 ? cartCount : undefined }}
+        component={CartScreen}
+        options={{ tabBarBadge: itemCount > 0 ? itemCount : undefined }}
       />
       <Tab.Screen
         name="Pedidos"
-        component={PlaceholderScreen}
-        initialParams={{ text: 'Pedidos - Parte 2' }}
+        component={OrdersStack}
       />
       <Tab.Screen
         name="Perfil"
@@ -83,6 +84,16 @@ function SearchCatalogStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProductList" component={ProductListScreen} initialParams={{ title: 'Productos' }} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function OrdersStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Orders" component={OrdersScreen} />
+      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
       <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
     </Stack.Navigator>
   );

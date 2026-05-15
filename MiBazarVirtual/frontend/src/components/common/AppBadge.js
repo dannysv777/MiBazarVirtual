@@ -8,7 +8,8 @@ const variants = {
   error: { backgroundColor: '#FFE9E8', color: colors.error },
   accent: { backgroundColor: '#E7F7EF', color: colors.accent },
   primary: { backgroundColor: colors.primaryLight, color: colors.primary },
-  info: { backgroundColor: '#EAF3FF', color: '#2F80ED' },
+  info: { backgroundColor: '#3B82F6', color: colors.surface },
+  gray: { backgroundColor: colors.background, color: colors.textSecondary },
 };
 
 export default function AppBadge({ label, variant = 'primary' }) {
