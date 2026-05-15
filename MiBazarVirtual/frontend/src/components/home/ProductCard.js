@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { colors, shadows, spacing, typography } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 
 const cardWidth = (Dimensions.get('window').width - 48) / 2;
@@ -19,7 +20,9 @@ const formatPrice = (price) => `Q ${Number(price ?? 0).toFixed(2)}`;
 
 export default function ProductCard({ product, onPress }) {
   const imageUrl = getProductImage(product);
+  const { user } = useAuth();
   const { addItem } = useCart();
+  const canBuy = user?.role === 'BUYER';
 
   const handleAddPress = () => {
     addItem(product, 1);
@@ -42,9 +45,11 @@ export default function ProductCard({ product, onPress }) {
             <Text style={styles.price}>{formatPrice(product.price)}</Text>
             <Text style={styles.unit}>/{product.unit ?? 'u'}</Text>
           </View>
-          <TouchableOpacity activeOpacity={0.8} onPress={handleAddPress} style={styles.addButton}>
-            <Ionicons name="add" size={20} color={colors.surface} />
-          </TouchableOpacity>
+          {canBuy ? (
+            <TouchableOpacity activeOpacity={0.8} onPress={handleAddPress} style={styles.addButton}>
+              <Ionicons name="add" size={20} color={colors.surface} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     </TouchableOpacity>

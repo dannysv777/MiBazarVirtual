@@ -1,11 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
+
+import { useAuth } from './AuthContext';
 
 export const CartContext = createContext(null);
 
 const CART_STORAGE_KEY = 'cart_items';
+
+const getCartStorageKey = (userId) => `${CART_STORAGE_KEY}_${userId}`;
 
 const getProductImage = (product) => (
   product.imageUrl ?? product.coverImage ?? product.mainImageUrl ?? product.images?.[0]?.url ?? null
@@ -31,36 +35,63 @@ const normalizeProduct = (product, quantity) => {
 };
 
 export function CartProvider({ children }) {
+  const { user, isAuthenticated } = useAuth();
   const [items, setItems] = useState([]);
   const [cartStoreId, setCartStoreId] = useState(null);
   const [cartStoreName, setCartStoreName] = useState(null);
+  const storageKey = isAuthenticated && user?.id ? getCartStorageKey(user.id) : null;
 
   useEffect(() => {
     const loadCart = async () => {
-      const storedItems = await AsyncStorage.getItem(CART_STORAGE_KEY);
-      if (!storedItems) return;
+      if (!storageKey) {
+        setItems([]);
+        setCartStoreId(null);
+        setCartStoreName(null);
+        return;
+      }
 
-      const parsedItems = JSON.parse(storedItems);
-      setItems(parsedItems);
-      setCartStoreId(parsedItems[0]?.store?.id ?? null);
-      setCartStoreName(parsedItems[0]?.store?.name ?? null);
+      await AsyncStorage.removeItem(CART_STORAGE_KEY);
+      const storedItems = await AsyncStorage.getItem(storageKey);
+
+      if (!storedItems) {
+        setItems([]);
+        setCartStoreId(null);
+        setCartStoreName(null);
+        return;
+      }
+
+      try {
+        const parsedItems = JSON.parse(storedItems);
+        setItems(parsedItems);
+        setCartStoreId(parsedItems[0]?.store?.id ?? null);
+        setCartStoreName(parsedItems[0]?.store?.name ?? null);
+      } catch (error) {
+        await AsyncStorage.removeItem(storageKey);
+        setItems([]);
+        setCartStoreId(null);
+        setCartStoreName(null);
+      }
     };
 
     loadCart();
-  }, []);
+  }, [storageKey]);
 
-  const persist = async (nextItems) => {
+  const persist = useCallback(async (nextItems) => {
     setItems(nextItems);
     setCartStoreId(nextItems[0]?.store?.id ?? null);
     setCartStoreName(nextItems[0]?.store?.name ?? null);
 
-    if (nextItems.length === 0) {
-      await AsyncStorage.removeItem(CART_STORAGE_KEY);
+    if (!storageKey) {
       return;
     }
 
-    await AsyncStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextItems));
-  };
+    if (nextItems.length === 0) {
+      await AsyncStorage.removeItem(storageKey);
+      return;
+    }
+
+    await AsyncStorage.setItem(storageKey, JSON.stringify(nextItems));
+  }, [storageKey]);
 
   const addToExistingCart = async (product, quantity) => {
     const normalized = normalizeProduct(product, quantity);
@@ -140,7 +171,7 @@ export function CartProvider({ children }) {
       subtotal,
       total,
     };
-  }, [cartStoreId, cartStoreName, items]);
+  }, [cartStoreId, cartStoreName, items, storageKey]);
 
   return (
     <CartContext.Provider value={value}>

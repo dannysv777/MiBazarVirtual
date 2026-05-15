@@ -50,10 +50,13 @@ export function AuthProvider({ children }) {
       ['refreshToken', authData.refreshToken],
     ]);
 
+    const profileResponse = await axiosInstance.get('/api/profile');
+    const profile = profileResponse.data?.data ?? authData.user;
+
     setAccessToken(authData.accessToken);
-    setUser(authData.user);
+    setUser(profile);
     setIsAuthenticated(true);
-    return authData.user;
+    return profile;
   };
 
   const register = async (userData) => {

@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { StyleSheet } from 'react-native';
 
 import { colors, spacing } from '../theme';
+import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useChat } from '../context/ChatContext';
 import CartScreen from '../screens/cart/CartScreen';
@@ -37,8 +38,10 @@ const tabIcons = {
 };
 
 export default function MainTabs() {
+  const { user } = useAuth();
   const { itemCount } = useCart();
   const { unreadCount } = useChat();
+  const isBuyer = user?.role === 'BUYER';
 
   return (
     <Tab.Navigator
@@ -56,11 +59,13 @@ export default function MainTabs() {
     >
       <Tab.Screen name="Inicio" component={HomeCatalogStack} />
       <Tab.Screen name="Buscar" component={SearchCatalogStack} />
-      <Tab.Screen
-        name="Carrito"
-        component={CartScreen}
-        options={{ tabBarBadge: itemCount > 0 ? itemCount : undefined }}
-      />
+      {isBuyer ? (
+        <Tab.Screen
+          name="Carrito"
+          component={CartScreen}
+          options={{ tabBarBadge: itemCount > 0 ? itemCount : undefined }}
+        />
+      ) : null}
       <Tab.Screen
         name="Pedidos"
         component={OrdersStack}

@@ -17,6 +17,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import * as chatApi from '../../api/chatApi';
 import { getProduct } from '../../api/productsApi';
+import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { formatPrice, getErrorMessage, getPayload } from '../../utils/apiResponse';
@@ -34,6 +35,7 @@ const getStore = (product) => product?.store ?? {
 
 export default function ProductDetailScreen({ navigation, route }) {
   const { productId } = route.params;
+  const { user } = useAuth();
   const { addItem } = useCart();
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -90,6 +92,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   const stock = Number(product.stock ?? 0);
   const description = product.description ?? 'Sin descripción disponible.';
   const canToggleDescription = description.length > 100;
+  const canBuy = user?.role === 'BUYER';
 
   const handleAddToCart = () => {
     addItem(product, quantity);
@@ -180,28 +183,38 @@ export default function ProductDetailScreen({ navigation, route }) {
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <View style={styles.quantitySelector}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            disabled={quantity === 1}
-            onPress={() => setQuantity((current) => Math.max(1, current - 1))}
-            style={[styles.quantityButton, styles.quantityOutline, quantity === 1 && styles.disabledButton]}
-          >
-            <Ionicons name="remove" size={18} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.quantityText}>{quantity}</Text>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            disabled={quantity >= stock}
-            onPress={() => setQuantity((current) => Math.min(stock, current + 1))}
-            style={[styles.quantityButton, styles.quantityFilled, quantity >= stock && styles.disabledButton]}
-          >
-            <Ionicons name="add" size={18} color={colors.surface} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.cartButtonWrap}>
-          <AppButton title="Agregar al carrito" onPress={handleAddToCart} disabled={stock === 0} fullWidth />
-        </View>
+        {canBuy ? (
+          <>
+            <View style={styles.quantitySelector}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={quantity === 1}
+                onPress={() => setQuantity((current) => Math.max(1, current - 1))}
+                style={[styles.quantityButton, styles.quantityOutline, quantity === 1 && styles.disabledButton]}
+              >
+                <Ionicons name="remove" size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <Text style={styles.quantityText}>{quantity}</Text>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={quantity >= stock}
+                onPress={() => setQuantity((current) => Math.min(stock, current + 1))}
+                style={[styles.quantityButton, styles.quantityFilled, quantity >= stock && styles.disabledButton]}
+              >
+                <Ionicons name="add" size={18} color={colors.surface} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.cartButtonWrap}>
+              <AppButton title="Agregar al carrito" onPress={handleAddToCart} disabled={stock === 0} fullWidth />
+            </View>
+          </>
+        ) : (
+          <View style={styles.roleHintWrap}>
+            <Text style={styles.roleHint}>
+              Vista de {user?.role === 'ADMIN' ? 'administrador' : 'vendedor'}
+            </Text>
+          </View>
+        )}
         <TouchableOpacity activeOpacity={0.85} disabled={startingChat} onPress={handleChat} style={styles.chatButton}>
           <Ionicons name={startingChat ? 'ellipsis-horizontal' : 'chatbubble-outline'} size={20} color={colors.secondary} />
         </TouchableOpacity>
@@ -409,6 +422,14 @@ const styles = StyleSheet.create({
   cartButtonWrap: {
     flex: 1,
     marginLeft: spacing.md,
+  },
+  roleHintWrap: {
+    flex: 1,
+  },
+  roleHint: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: '700',
   },
   chatButton: {
     width: 36,
