@@ -174,7 +174,7 @@ export default function ChatScreen({ navigation, route }) {
           <FlatList
             data={listData}
             inverted
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item, index) => `${item.id ?? item.createdAt ?? 'message'}-${index}`}
             contentContainerStyle={styles.messagesContent}
             renderItem={({ item }) => (
               <MessageBubble message={item} isMine={Number(item.senderId) === Number(user?.id)} />
