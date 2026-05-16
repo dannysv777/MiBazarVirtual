@@ -23,7 +23,23 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    if (error.code === 'ECONNABORTED') {
+      return Promise.reject({ ...error, response: { data: { message: 'El servidor tardó demasiado. Intenta de nuevo.' } } });
+    }
+
+    if (!error.response) {
+      return Promise.reject({ ...error, response: { data: { message: 'Sin conexión. Verifica tu internet.' } } });
+    }
+
     if (error.response?.status !== 401 || originalRequest?._retry) {
+      if (error.response?.status === 500) {
+        error.response.data = { ...error.response.data, message: 'Error del servidor. Intenta más tarde.' };
+      }
+
+      if (error.response?.status === 404) {
+        error.response.data = { ...error.response.data, message: 'No encontrado.' };
+      }
+
       return Promise.reject(error);
     }
 

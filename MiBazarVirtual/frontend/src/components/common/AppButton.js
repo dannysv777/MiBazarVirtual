@@ -2,11 +2,12 @@ import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 import { colors, typography } from '../../theme';
+import { scale } from '../../utils/responsive';
 
 const heights = {
-  sm: 36,
-  md: 48,
-  lg: 56,
+  sm: scale(36),
+  md: scale(48),
+  lg: scale(56),
 };
 
 export default function AppButton({
@@ -50,8 +51,8 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 18,
+    borderRadius: scale(12),
+    paddingHorizontal: scale(18),
   },
   sm: {
     height: heights.sm,

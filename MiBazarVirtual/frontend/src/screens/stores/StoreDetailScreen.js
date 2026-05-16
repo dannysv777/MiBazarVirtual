@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
   FlatList,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -15,7 +16,8 @@ import SkeletonLoader from '../../components/common/SkeletonLoader';
 import ProductCard from '../../components/home/ProductCard';
 import { getStore, getStoreProducts, getStoreReviews } from '../../api/storesApi';
 import { colors, shadows, spacing, typography } from '../../theme';
-import { formatDate, getErrorMessage, getList, getPayload } from '../../utils/apiResponse';
+import { formatDate } from '../../utils/formatters';
+import { getErrorMessage, getList, getPayload } from '../../utils/apiResponse';
 
 export default function StoreDetailScreen({ navigation, route }) {
   const { storeId } = route.params;
@@ -74,6 +76,7 @@ export default function StoreDetailScreen({ navigation, route }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.header}>
           <SkeletonLoader width="70%" height={28} borderRadius={12} />
           <SkeletonLoader width="45%" height={18} borderRadius={12} />
@@ -91,6 +94,7 @@ export default function StoreDetailScreen({ navigation, route }) {
   if (error && !store) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.centerState}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.goBack()} style={styles.backPill}>
@@ -106,6 +110,7 @@ export default function StoreDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.headerBackButton}>
           <Ionicons name="arrow-back" size={22} color={colors.surface} />

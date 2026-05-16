@@ -1,14 +1,15 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as ordersApi from '../../api/ordersApi';
 import EmptyState from '../../components/common/EmptyState';
@@ -29,7 +30,7 @@ const statusFilters = [
 export default function OrdersScreen({ navigation }) {
   const { user } = useAuth();
   const isSeller = user?.role === 'SELLER';
-  const [activeTab, setActiveTab] = useState('BUYER');
+  const [activeTab, setActiveTab] = useState(isSeller ? 'SELLER' : 'BUYER');
   const [status, setStatus] = useState(undefined);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,11 @@ export default function OrdersScreen({ navigation }) {
     }
   }, [activeTab, status]);
 
+  useEffect(() => {
+    setActiveTab(isSeller ? 'SELLER' : 'BUYER');
+    setStatus(undefined);
+  }, [isSeller]);
+
   useFocusEffect(
     useCallback(() => {
       loadOrders();
@@ -66,20 +72,14 @@ export default function OrdersScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <Text style={styles.title}>Pedidos</Text>
         <Text style={styles.subtitle}>{activeTab === 'SELLER' ? 'Pedidos recibidos' : 'Tus compras recientes'}</Text>
       </View>
 
-      {isSeller ? (
-        <View style={styles.tabs}>
-          <TabButton label="Mis compras" active={activeTab === 'BUYER'} onPress={() => setActiveTab('BUYER')} />
-          <TabButton label="Recibidos" active={activeTab === 'SELLER'} onPress={() => setActiveTab('SELLER')} />
-        </View>
-      ) : null}
-
       {activeTab === 'SELLER' ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll} contentContainerStyle={styles.filters}>
           {statusFilters.map((filter) => (
             <TouchableOpacity
               key={filter.label}
@@ -129,14 +129,6 @@ export default function OrdersScreen({ navigation }) {
   );
 }
 
-function TabButton({ label, active, onPress }) {
-  return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={[styles.tabButton, active && styles.activeTab]}>
-      <Text style={[styles.tabText, active && styles.activeTabText]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -152,39 +144,22 @@ const styles = StyleSheet.create({
     ...typography.small,
     marginTop: spacing.xs,
   },
-  tabs: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    padding: 4,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-  },
-  tabButton: {
-    flex: 1,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-  },
-  activeTab: {
-    backgroundColor: colors.primary,
-  },
-  tabText: {
-    ...typography.bodyBold,
-    color: colors.textSecondary,
-  },
-  activeTabText: {
-    color: colors.surface,
-  },
   filters: {
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
     gap: spacing.sm,
   },
+  filtersScroll: {
+    flexGrow: 0,
+    maxHeight: 52,
+  },
   chip: {
+    height: 38,
+    minWidth: 104,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
     borderRadius: 18,
     backgroundColor: colors.surface,
   },

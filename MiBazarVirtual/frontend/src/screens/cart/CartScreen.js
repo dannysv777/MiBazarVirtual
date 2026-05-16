@@ -1,29 +1,34 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
 import { useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
   Modal,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 
 import * as ordersApi from '../../api/ordersApi';
+import AppImage from '../../components/common/AppImage';
 import AppButton from '../../components/common/AppButton';
 import AppInput from '../../components/common/AppInput';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useToast } from '../../context/ToastContext';
 import { colors, shadows, spacing, typography } from '../../theme';
-import { formatPrice, getErrorMessage } from '../../utils/apiResponse';
+import { formatPrice } from '../../utils/formatters';
+import { getErrorMessage } from '../../utils/apiResponse';
+import { scale } from '../../utils/responsive';
 
 export default function CartScreen({ navigation }) {
   const { user } = useAuth();
+  const { showError, showSuccess } = useToast();
   const {
     items,
     cartStoreId,
@@ -58,8 +63,11 @@ export default function CartScreen({ navigation }) {
       });
       await clearCart();
       setSuccessVisible(true);
+      showSuccess('Pedido realizado');
     } catch (submitError) {
-      setError(getErrorMessage(submitError, 'No pudimos crear el pedido.'));
+      const message = getErrorMessage(submitError, 'No pudimos crear el pedido.');
+      setError(message);
+      showError(message);
     } finally {
       setLoading(false);
     }
@@ -68,6 +76,7 @@ export default function CartScreen({ navigation }) {
   if (itemCount === 0 && !successVisible) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
         <EmptyState
           emoji="🛒"
           title="Tu carrito está vacío"
@@ -81,6 +90,7 @@ export default function CartScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
       <FlatList
         data={items}
         keyExtractor={(item) => String(item.id)}
@@ -168,13 +178,7 @@ function CartItemRow({ item, onDelete, onQuantityChange }) {
   return (
     <Swipeable renderRightActions={renderRightActions}>
       <View style={styles.itemCard}>
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.itemImage} contentFit="cover" />
-        ) : (
-          <View style={styles.itemFallback}>
-            <Ionicons name="restaurant-outline" size={24} color={colors.textSecondary} />
-          </View>
-        )}
+        <AppImage uri={item.imageUrl} style={styles.itemImage} fallbackEmoji="🛒" />
         <View style={styles.itemInfo}>
           <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
           <Text style={styles.itemUnit}>{item.unit}</Text>
@@ -301,9 +305,9 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   itemImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
+    width: scale(60),
+    height: scale(60),
+    borderRadius: scale(8),
   },
   itemFallback: {
     width: 60,

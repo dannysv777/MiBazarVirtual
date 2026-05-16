@@ -1,25 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as ordersApi from '../../api/ordersApi';
+import AppImage from '../../components/common/AppImage';
 import AppButton from '../../components/common/AppButton';
 import AppInput from '../../components/common/AppInput';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OrderStatusBadge from '../../components/orders/OrderStatusBadge';
+import { useToast } from '../../context/ToastContext';
 import { colors, shadows, spacing, typography } from '../../theme';
-import { formatDate, formatPrice, getErrorMessage, getPayload } from '../../utils/apiResponse';
+import { formatDate, formatPrice } from '../../utils/formatters';
+import { getErrorMessage, getPayload } from '../../utils/apiResponse';
 
 const steps = [
   { status: 'PENDING', label: 'Pendiente' },
@@ -36,6 +39,7 @@ const nextStatusMap = {
 
 export default function OrderDetailScreen({ navigation, route }) {
   const { orderId, isSeller, order: initialOrder } = route.params;
+  const { showError, showSuccess } = useToast();
   const [order, setOrder] = useState(initialOrder ?? null);
   const [loading, setLoading] = useState(!initialOrder);
   const [actionLoading, setActionLoading] = useState(false);
@@ -86,8 +90,10 @@ export default function OrderDetailScreen({ navigation, route }) {
           try {
             const response = await ordersApi.cancelOrder(orderId);
             setOrder(getPayload(response));
+            showSuccess('Pedido cancelado');
+            navigation.goBack();
           } catch (cancelError) {
-            Alert.alert('No se pudo cancelar', getErrorMessage(cancelError));
+            showError(getErrorMessage(cancelError));
           } finally {
             setActionLoading(false);
           }
@@ -104,9 +110,10 @@ export default function OrderDetailScreen({ navigation, route }) {
     try {
       const response = await ordersApi.updateOrderStatus(orderId, next.status);
       setOrder(getPayload(response));
+      showSuccess('Estado actualizado correctamente');
       await refreshAfterAction();
     } catch (statusError) {
-      Alert.alert('No se pudo actualizar', getErrorMessage(statusError));
+      showError(getErrorMessage(statusError));
     } finally {
       setActionLoading(false);
     }
@@ -115,6 +122,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
         <LoadingSpinner />
       </SafeAreaView>
     );
@@ -123,6 +131,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   if (error || !order) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.centerState}>
           <Text style={styles.errorText}>{error}</Text>
           <AppButton title="Volver" variant="outline" onPress={() => navigation.goBack()} />
@@ -135,6 +144,7 @@ export default function OrderDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -189,6 +199,7 @@ export default function OrderDetailScreen({ navigation, route }) {
         onSuccess={async () => {
           setReviewVisible(false);
           setSuccessMessage('Gracias por tu calificación.');
+          showSuccess('Gracias por tu calificacion');
           await loadOrder();
         }}
       />
@@ -243,13 +254,7 @@ function OrderItemsCard({ order }) {
       <Text style={styles.cardTitle}>Productos</Text>
       {order.items?.map((item) => (
         <View key={`${item.productId}-${item.productName}`} style={styles.orderItemRow}>
-          {item.productImageUrl ? (
-            <Image source={{ uri: item.productImageUrl }} style={styles.productImage} contentFit="cover" />
-          ) : (
-            <View style={styles.productFallback}>
-              <Ionicons name="restaurant-outline" size={20} color={colors.textSecondary} />
-            </View>
-          )}
+          <AppImage uri={item.productImageUrl} style={styles.productImage} fallbackEmoji="🛒" />
           <View style={styles.productInfo}>
             <Text style={styles.productName}>{item.productName}</Text>
             <Text style={styles.productMeta}>{item.quantity} × {formatPrice(item.unitPrice)}</Text>

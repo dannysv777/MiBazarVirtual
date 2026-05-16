@@ -70,6 +70,13 @@ public class ProductManagementService {
                     .orElseThrow(() -> new CategoryNotFoundException(request.categoryId()));
             product.setCategory(category);
         }
+        if (request.status() != null && product.getStatus() != Product.Status.DELETED) {
+            Product.Status nextStatus = request.status();
+            if (nextStatus == Product.Status.ACTIVE && product.getStock() == 0) {
+                nextStatus = Product.Status.OUT_OF_STOCK;
+            }
+            product.setStatus(nextStatus);
+        }
         return ProductDTO.from(product);
     }
 

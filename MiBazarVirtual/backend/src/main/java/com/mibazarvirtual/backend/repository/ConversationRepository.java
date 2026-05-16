@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
     Optional<Conversation> findByBuyerIdAndSellerIdAndProductId(Long buyerId, Long sellerId, Long productId);
 
+    Optional<Conversation> findFirstByBuyerIdAndSellerIdOrderByUpdatedAtDesc(Long buyerId, Long sellerId);
+
     List<Conversation> findByBuyerIdOrSellerIdOrderByUpdatedAtDesc(Long buyerId, Long sellerId);
 
     long countByBuyerIdOrSellerId(Long buyerId, Long sellerId);

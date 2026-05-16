@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Alert } from 'react-native';
 
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 
 export const CartContext = createContext(null);
 
@@ -36,6 +37,7 @@ const normalizeProduct = (product, quantity) => {
 
 export function CartProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
+  const { showSuccess } = useToast();
   const [items, setItems] = useState([]);
   const [cartStoreId, setCartStoreId] = useState(null);
   const [cartStoreName, setCartStoreName] = useState(null);
@@ -93,7 +95,7 @@ export function CartProvider({ children }) {
     await AsyncStorage.setItem(storageKey, JSON.stringify(nextItems));
   }, [storageKey]);
 
-  const addToExistingCart = async (product, quantity) => {
+  const addToExistingCart = async (product, quantity, options = {}) => {
     const normalized = normalizeProduct(product, quantity);
     const nextItems = items.some((item) => item.id === normalized.id)
       ? items.map((item) => (
@@ -105,19 +107,25 @@ export function CartProvider({ children }) {
 
     await persist(nextItems);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!options.silent) {
+      showSuccess(`"${normalized.name}" agregado al carrito`);
+    }
   };
 
-  const clearAndAdd = async (product, quantity) => {
+  const clearAndAdd = async (product, quantity, options = {}) => {
     const normalized = normalizeProduct(product, quantity);
     await persist([normalized]);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!options.silent) {
+      showSuccess(`"${normalized.name}" agregado al carrito`);
+    }
   };
 
-  const addItem = (product, quantity = 1) => {
+  const addItem = (product, quantity = 1, options = {}) => {
     const store = getProductStore(product);
 
     if (items.length === 0 || store.id === cartStoreId) {
-      addToExistingCart(product, quantity);
+      addToExistingCart(product, quantity, options);
       return;
     }
 

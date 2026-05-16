@@ -1,41 +1,149 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as chatApi from '../../api/chatApi';
+import { getProduct } from '../../api/productsApi';
 import MessageBubble from '../../components/chat/MessageBubble';
+import AppImage from '../../components/common/AppImage';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
+import { useToast } from '../../context/ToastContext';
 import { colors, spacing, typography } from '../../theme';
-import { getErrorMessage, getList } from '../../utils/apiResponse';
+import { formatPrice } from '../../utils/formatters';
+import { getErrorMessage, getList, getPayload } from '../../utils/apiResponse';
+import { PRODUCT_CONTEXT_PREFIX } from '../../utils/chatMessage';
 
-const sortMessages = (items) => [...items].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+const newestFirst = (items) => (
+  [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+);
+
+const normalizeIncomingMessage = (payload) => {
+  const message = payload?.data ?? payload?.message ?? payload;
+  const createdAt = message?.createdAt ?? new Date().toISOString();
+
+  return {
+    ...message,
+    id: message?.id ?? `${message?.senderId ?? 'sender'}-${createdAt}-${message?.content ?? ''}`,
+    createdAt,
+  };
+};
 
 export default function ChatScreen({ navigation, route }) {
-  const { conversationId, otherUsername, productId } = route.params;
+  const {
+    conversationId,
+    otherUsername,
+    productId,
+    storeId,
+    sellerId,
+    buyerId,
+    productContext,
+    returnToConversations,
+  } = route.params;
   const { user } = useAuth();
   const { isConnected, subscribeToConversation, sendMessage, sendTyping, refreshUnreadCount } = useChat();
+  const { showInfo, showError } = useToast();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [contextProduct, setContextProduct] = useState(productContext ?? null);
+  const [contextAttached, setContextAttached] = useState(Boolean(productContext));
+  const [resolvedStoreId, setResolvedStoreId] = useState(storeId ?? productContext?.storeId ?? null);
+  const flatListRef = useRef(null);
   const typingTimerRef = useRef(null);
   const sendTypingTimerRef = useRef(null);
+
+  const handleBack = () => {
+    if (returnToConversations) {
+      navigation.navigate('Conversations');
+      return;
+    }
+
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate('Conversations');
+  };
+
+  const handleParticipantPress = () => {
+    if (user?.role === 'SELLER' || Number(sellerId) === Number(user?.id)) {
+      return;
+    }
+
+    if (resolvedStoreId) {
+      navigation.navigate('StoreDetail', { storeId: resolvedStoreId });
+      return;
+    }
+
+    if (contextProduct?.storeId) {
+      navigation.navigate('StoreDetail', { storeId: contextProduct.storeId });
+    }
+  };
+
+  const getParticipantSubtitle = () => {
+    if (user?.role === 'SELLER' || Number(sellerId) === Number(user?.id)) {
+      return 'Comprador';
+    }
+
+    if (resolvedStoreId || contextProduct?.storeId || Number(sellerId) !== Number(user?.id)) {
+      return 'Toca para ver la tienda';
+    }
+
+    if (buyerId) {
+      return 'Comprador';
+    }
+
+    return isConnected ? 'Conectado' : 'Conectando...';
+  };
+
+  const handleProductPress = async (product) => {
+    if (!product?.id) {
+      showInfo('Publicacion de producto no disponible.');
+      return;
+    }
+
+    try {
+      const response = await getProduct(product.id);
+      const latestProduct = getPayload(response);
+      const isUnavailable = latestProduct?.active === false
+        || latestProduct?.status === 'DELETED'
+        || Number(latestProduct?.stock ?? 1) <= 0;
+
+      if (isUnavailable) {
+        showInfo('Publicacion de producto agotado o no disponible.');
+        return;
+      }
+
+      navigation.navigate('ProductDetail', { productId: product.id });
+    } catch (productError) {
+      showInfo('Publicacion de producto agotado o no disponible.');
+    }
+  };
+
+  const scrollToNewest = () => {
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    });
+  };
 
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
@@ -43,8 +151,9 @@ export default function ChatScreen({ navigation, route }) {
 
     try {
       const response = await chatApi.getMessages(conversationId, { page: 0, size: 30 });
-      setMessages(sortMessages(getList(response)));
+      setMessages(newestFirst(getList(response)));
       refreshUnreadCount();
+      scrollToNewest();
     } catch (historyError) {
       setError(getErrorMessage(historyError, 'No pudimos cargar la conversación.'));
     } finally {
@@ -57,6 +166,43 @@ export default function ChatScreen({ navigation, route }) {
   }, [loadHistory]);
 
   useEffect(() => {
+    if (productContext || !productId) {
+      return;
+    }
+
+    let mounted = true;
+
+    const loadProductContext = async () => {
+      try {
+        const response = await getProduct(productId);
+        const product = getPayload(response);
+        const store = product?.store ?? {};
+
+        if (!mounted) return;
+
+        setContextProduct({
+          id: product.id,
+          name: product.name,
+          imageUrl: product.imageUrl ?? product.mainImageUrl ?? product.images?.[0]?.url ?? null,
+          price: product.price,
+          unit: product.unit,
+          storeId: store.id ?? product.storeId,
+          storeName: store.name ?? product.storeName,
+        });
+        setResolvedStoreId(store.id ?? product.storeId ?? null);
+      } catch (loadError) {
+        setContextProduct(null);
+      }
+    };
+
+    loadProductContext();
+
+    return () => {
+      mounted = false;
+    };
+  }, [productContext, productId]);
+
+  useEffect(() => {
     if (!isConnected) {
       return undefined;
     }
@@ -64,19 +210,26 @@ export default function ChatScreen({ navigation, route }) {
     const unsubscribe = subscribeToConversation(
       conversationId,
       (newMessage) => {
+        const confirmedMessage = normalizeIncomingMessage(newMessage);
         setMessages((current) => {
-          const withoutOptimistic = current.filter((message) => !(
-            String(message.id).startsWith('temp-')
-            && message.content === newMessage.content
-            && Number(message.senderId) === Number(user?.id)
+          const filtered = current.filter((message) => !(
+            Number(message.id) < 0
+            && message.content === confirmedMessage.content
+            && (
+              Number(message.senderId) === Number(confirmedMessage.senderId)
+              || Number(message.senderId) === Number(user?.id)
+              || confirmedMessage.senderId == null
+            )
           ));
 
-          if (withoutOptimistic.some((message) => String(message.id) === String(newMessage.id))) {
-            return withoutOptimistic;
+          if (filtered.some((message) => String(message.id) === String(confirmedMessage.id))) {
+            return filtered;
           }
 
-          return sortMessages([...withoutOptimistic, newMessage]);
+          return [confirmedMessage, ...filtered];
         });
+        refreshUnreadCount();
+        scrollToNewest();
       },
       (typingData) => {
         if (typingData?.username && typingData.username === user?.username) {
@@ -94,9 +247,7 @@ export default function ChatScreen({ navigation, route }) {
       clearTimeout(typingTimerRef.current);
       clearTimeout(sendTypingTimerRef.current);
     };
-  }, [conversationId, isConnected, subscribeToConversation, user?.id, user?.username]);
-
-  const listData = useMemo(() => [...messages].reverse(), [messages]);
+  }, [conversationId, isConnected, refreshUnreadCount, subscribeToConversation, user?.id, user?.username]);
 
   const handleChangeText = (value) => {
     setInputText(value);
@@ -105,9 +256,14 @@ export default function ChatScreen({ navigation, route }) {
   };
 
   const handleSend = async () => {
-    const content = inputText.trim();
+    const rawContent = inputText.trim();
 
-    if (!content || sending) {
+    if (!rawContent || sending) {
+      return;
+    }
+
+    if (!isConnected) {
+      setError('Conectando al chat. Espera unos segundos e intenta de nuevo.');
       return;
     }
 
@@ -115,8 +271,19 @@ export default function ChatScreen({ navigation, route }) {
     setInputText('');
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    const content = contextAttached && contextProduct
+      ? `${PRODUCT_CONTEXT_PREFIX}${JSON.stringify({
+        id: contextProduct.id,
+        name: contextProduct.name,
+        imageUrl: contextProduct.imageUrl,
+        price: contextProduct.price,
+        unit: contextProduct.unit,
+      })}\n${rawContent}`
+      : rawContent;
+
     const optimisticMessage = {
-      id: `temp-${Date.now()}`,
+      id: -Date.now(),
+      optimistic: true,
       conversationId,
       senderId: user?.id,
       senderUsername: user?.username,
@@ -125,34 +292,41 @@ export default function ChatScreen({ navigation, route }) {
       isRead: false,
     };
 
-    setMessages((current) => sortMessages([...current, optimisticMessage]));
-
     const delivered = sendMessage(conversationId, content);
 
     if (!delivered) {
       setError('Sin conexión al chat. Intenta de nuevo en un momento.');
+      setInputText(rawContent);
+      setSending(false);
+      return;
     }
 
+    setMessages((current) => [optimisticMessage, ...current]);
+    setContextAttached(false);
+    scrollToNewest();
+    setError('');
     setSending(false);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity activeOpacity={0.8} onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
-          <View style={styles.avatar}>
+          <TouchableOpacity activeOpacity={0.78} onPress={handleParticipantPress} style={styles.avatar}>
             <Text style={styles.avatarText}>{otherUsername?.charAt(0)?.toUpperCase() ?? 'T'}</Text>
-          </View>
-          <View style={styles.headerText}>
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.78} onPress={handleParticipantPress} style={styles.headerText}>
             <Text style={styles.otherName} numberOfLines={1}>{otherUsername}</Text>
-            <Text style={styles.productText}>Producto #{productId}</Text>
-          </View>
+            <Text style={styles.productText}>{getParticipantSubtitle()}</Text>
+          </TouchableOpacity>
           <View style={[styles.connectionDot, { backgroundColor: isConnected ? colors.success : colors.textLight }]} />
         </View>
 
@@ -172,34 +346,58 @@ export default function ChatScreen({ navigation, route }) {
           </View>
         ) : (
           <FlatList
-            data={listData}
+            ref={flatListRef}
+            data={messages}
             inverted
             keyExtractor={(item, index) => `${item.id ?? item.createdAt ?? 'message'}-${index}`}
             contentContainerStyle={styles.messagesContent}
             renderItem={({ item }) => (
-              <MessageBubble message={item} isMine={Number(item.senderId) === Number(user?.id)} />
+              <MessageBubble
+                message={item}
+                isMine={Number(item.senderId) === Number(user?.id)}
+                onProductPress={handleProductPress}
+                fallbackProductId={productId}
+              />
             )}
             ListHeaderComponent={isTyping ? <TypingIndicator /> : null}
           />
         )}
 
-        <View style={styles.inputBar}>
+        <View style={styles.inputWrap}>
+          {contextAttached && contextProduct ? (
+            <View style={styles.productContextCard}>
+              <AppImage uri={contextProduct.imageUrl} style={styles.contextImage} fallbackEmoji="🛒" />
+              <View style={styles.contextBody}>
+                <Text style={styles.contextEyebrow}>Consulta sobre este producto</Text>
+                <Text style={styles.contextName} numberOfLines={1}>{contextProduct.name}</Text>
+                <Text style={styles.contextPrice}>
+                  {formatPrice(contextProduct.price)} / {contextProduct.unit ?? 'u'}
+                </Text>
+              </View>
+              <TouchableOpacity activeOpacity={0.75} onPress={() => setContextAttached(false)} style={styles.contextClose}>
+                <Ionicons name="close" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          <View style={styles.inputBar}>
           <TextInput
             value={inputText}
             onChangeText={handleChangeText}
-            placeholder="Escribe un mensaje..."
+            placeholder={isConnected ? 'Escribe un mensaje...' : 'Conectando al chat...'}
             placeholderTextColor={colors.textLight}
             multiline
             style={styles.input}
           />
           <TouchableOpacity
             activeOpacity={0.85}
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || !isConnected || sending}
             onPress={handleSend}
-            style={[styles.sendButton, inputText.trim() ? styles.sendButtonActive : styles.sendButtonDisabled]}
+            style={[styles.sendButton, inputText.trim() && isConnected ? styles.sendButtonActive : styles.sendButtonDisabled]}
           >
             <Ionicons name="send" size={20} color={colors.surface} />
           </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -302,14 +500,59 @@ const styles = StyleSheet.create({
   messagesContent: {
     paddingVertical: spacing.md,
   },
+  inputWrap: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  productContextCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.sm,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  contextImage: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+  },
+  contextBody: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  contextEyebrow: {
+    ...typography.tiny,
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  contextName: {
+    ...typography.small,
+    color: colors.textPrimary,
+    fontWeight: '800',
+    marginTop: 1,
+  },
+  contextPrice: {
+    ...typography.tiny,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
+  contextClose: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 15,
+  },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.sm,
     padding: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
   },
   input: {
     ...typography.body,

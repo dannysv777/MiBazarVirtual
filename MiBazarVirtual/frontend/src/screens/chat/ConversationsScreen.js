@@ -1,55 +1,65 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as chatApi from '../../api/chatApi';
 import EmptyState from '../../components/common/EmptyState';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import { useChat } from '../../context/ChatContext';
+import { useAuth } from '../../context/AuthContext';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { getErrorMessage, getList } from '../../utils/apiResponse';
-
-const formatRelative = (value) => {
-  if (!value) {
-    return '';
-  }
-
-  const then = new Date(value).getTime();
-  const diffMinutes = Math.max(0, Math.floor((Date.now() - then) / 60000));
-
-  if (diffMinutes < 1) {
-    return 'ahora';
-  }
-
-  if (diffMinutes < 60) {
-    return `hace ${diffMinutes} min`;
-  }
-
-  if (diffMinutes < 1440) {
-    return `hace ${Math.floor(diffMinutes / 60)} h`;
-  }
-
-  if (diffMinutes < 2880) {
-    return 'ayer';
-  }
-
-  return new Date(value).toLocaleDateString('es-GT', { day: '2-digit', month: 'short' });
-};
+import { getChatPreviewText } from '../../utils/chatMessage';
+import { formatRelativeTime } from '../../utils/formatters';
 
 const getOtherName = (conversation) => (
   conversation.otherParticipantUsername ?? conversation.otherUsername ?? conversation.sellerUsername ?? 'Tienda'
 );
 
+const getConversationGroupKey = (conversation, user) => {
+  if (user?.role === 'BUYER') {
+    return `seller-${conversation.sellerId ?? getOtherName(conversation)}`;
+  }
+
+  if (user?.role === 'SELLER') {
+    return `buyer-${conversation.buyerId ?? getOtherName(conversation)}`;
+  }
+
+  return `${conversation.buyerId ?? 'buyer'}-${conversation.sellerId ?? getOtherName(conversation)}`;
+};
+
+const getConversationTime = (conversation) => (
+  new Date(conversation.lastMessageTime ?? conversation.updatedAt ?? 0).getTime()
+);
+
+const groupConversationsByParticipant = (items, user) => {
+  const grouped = new Map();
+
+  items.forEach((conversation) => {
+    const key = getConversationGroupKey(conversation, user);
+    const current = grouped.get(key);
+
+    if (!current || getConversationTime(conversation) > getConversationTime(current)) {
+      grouped.set(key, conversation);
+    }
+  });
+
+  return [...grouped.values()].sort((a, b) => getConversationTime(b) - getConversationTime(a));
+};
+
 export default function ConversationsScreen({ navigation }) {
+  const { user } = useAuth();
   const { unreadCount, refreshUnreadCount } = useChat();
   const [conversations, setConversations] = useState([]);
   const [query, setQuery] = useState('');
@@ -67,7 +77,7 @@ export default function ConversationsScreen({ navigation }) {
 
     try {
       const response = await chatApi.getConversations();
-      setConversations(getList(response));
+      setConversations(groupConversationsByParticipant(getList(response), user));
       refreshUnreadCount();
     } catch (conversationError) {
       setError(getErrorMessage(conversationError, 'No pudimos cargar tus mensajes.'));
@@ -75,11 +85,17 @@ export default function ConversationsScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [refreshUnreadCount]);
+  }, [refreshUnreadCount, user]);
 
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadConversations(true);
+    }, [loadConversations])
+  );
 
   const filteredConversations = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -105,6 +121,9 @@ export default function ConversationsScreen({ navigation }) {
           conversationId: item.id,
           otherUsername,
           productId: item.productId,
+          sellerId: item.sellerId,
+          buyerId: item.buyerId,
+          returnToConversations: true,
         })}
       >
         <View style={styles.avatar}>
@@ -113,10 +132,10 @@ export default function ConversationsScreen({ navigation }) {
         <View style={styles.conversationBody}>
           <View style={styles.conversationTop}>
             <Text style={styles.otherName} numberOfLines={1}>{otherUsername}</Text>
-            <Text style={styles.time}>{formatRelative(item.lastMessageTime ?? item.updatedAt)}</Text>
+            <Text style={styles.time}>{formatRelativeTime(item.lastMessageTime ?? item.updatedAt)}</Text>
           </View>
           <Text style={styles.preview} numberOfLines={1}>
-            {item.lastMessage ?? 'Sin mensajes todavía'}
+            {item.lastMessage ? getChatPreviewText(item.lastMessage) : 'Sin mensajes todavía'}
           </Text>
         </View>
         {unread > 0 ? (
@@ -130,13 +149,16 @@ export default function ConversationsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Mensajes</Text>
           {unreadCount > 0 ? (
             <Text style={styles.unreadSummary}>{unreadCount} sin leer</Text>
           ) : (
-            <Text style={styles.subtitle}>Conversaciones con vendedores</Text>
+            <Text style={styles.subtitle}>
+              {user?.role === 'SELLER' ? 'Conversaciones con compradores' : 'Conversaciones con vendedores'}
+            </Text>
           )}
         </View>
       </View>

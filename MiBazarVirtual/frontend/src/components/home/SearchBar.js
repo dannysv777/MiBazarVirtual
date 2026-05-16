@@ -10,6 +10,8 @@ export default function SearchBar({
   onPress,
   placeholder = 'Buscar productos...',
   editable = true,
+  onFocus,
+  onBlur,
 }) {
   const content = (
     <View style={styles.container}>
@@ -21,6 +23,8 @@ export default function SearchBar({
         placeholder={placeholder}
         placeholderTextColor={colors.textSecondary}
         editable={editable}
+        onFocus={onFocus}
+        onBlur={onBlur}
         returnKeyType="search"
         style={styles.input}
       />

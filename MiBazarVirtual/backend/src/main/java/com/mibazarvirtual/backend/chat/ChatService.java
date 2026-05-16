@@ -33,7 +33,7 @@ public class ChatService {
     @Transactional
     public ConversationDTO startOrGetConversation(Long buyerId, Long sellerId, Long productId) {
         Conversation conversation = conversationRepository
-                .findByBuyerIdAndSellerIdAndProductId(buyerId, sellerId, productId)
+                .findFirstByBuyerIdAndSellerIdOrderByUpdatedAtDesc(buyerId, sellerId)
                 .orElseGet(() -> createConversation(buyerId, sellerId, productId));
 
         return toConversationDTO(conversation, buyerId);

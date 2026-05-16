@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '../../theme';
 
@@ -16,13 +18,14 @@ export default function SplashScreen() {
   }, [scale]);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" backgroundColor="transparent" translucent />
       <Animated.View style={[styles.content, { transform: [{ scale }] }]}>
         <Text style={styles.emoji}>🛒</Text>
         <Text style={styles.title}>MiBazarVirtual</Text>
         <Text style={styles.subtitle}>Tu mercado en un solo lugar</Text>
       </Animated.View>
-    </View>
+    </SafeAreaView>
   );
 }
 

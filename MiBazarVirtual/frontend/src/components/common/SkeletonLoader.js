@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 
 import { colors } from '../../theme';
 
@@ -15,6 +15,14 @@ export default function SkeletonLoader({ width, height, borderRadius = 12, style
     ).start();
   }, [opacity]);
 
+  if (height === '100%') {
+    return (
+      <View style={[styles.percentWrap, style]}>
+        <Animated.View style={[styles.loader, styles.percentFill, { borderRadius, opacity }]} />
+      </View>
+    );
+  }
+
   return (
     <Animated.View
       style={[
@@ -29,5 +37,12 @@ export default function SkeletonLoader({ width, height, borderRadius = 12, style
 const styles = StyleSheet.create({
   loader: {
     backgroundColor: colors.border,
+  },
+  percentWrap: {
+    overflow: 'hidden',
+  },
+  percentFill: {
+    width: '100%',
+    height: '100%',
   },
 });

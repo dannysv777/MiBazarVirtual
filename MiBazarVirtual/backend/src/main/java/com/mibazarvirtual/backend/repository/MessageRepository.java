@@ -2,6 +2,7 @@
 package com.mibazarvirtual.backend.repository;
 
 import com.mibazarvirtual.backend.entity.Message;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +28,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     int countUnreadForUser(@Param("userId") Long userId);
 
     Message findTopByConversationIdOrderByCreatedAtDesc(Long conversationId);
+
+    long deleteByCreatedAtBefore(LocalDateTime cutoff);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

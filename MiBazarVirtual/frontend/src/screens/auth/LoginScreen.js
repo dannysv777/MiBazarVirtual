@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -7,12 +8,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppButton from '../../components/common/AppButton';
 import AppInput from '../../components/common/AppInput';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, typography } from '../../theme';
 import { getErrorMessage } from '../../utils/apiResponse';
+import { hp, scale } from '../../utils/responsive';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -36,10 +39,12 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" backgroundColor="transparent" translucent />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardView}
+      >
       <View style={styles.topSection}>
         <Text style={styles.logo}>🛒</Text>
         <Text style={styles.brand}>MiBazarVirtual</Text>
@@ -84,7 +89,8 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -93,13 +99,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
   },
+  keyboardView: {
+    flex: 1,
+  },
   topSection: {
-    height: 220,
+    height: hp(28),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.secondary,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    borderBottomLeftRadius: scale(32),
+    borderBottomRightRadius: scale(32),
   },
   logo: {
     fontSize: 48,

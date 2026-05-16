@@ -1,17 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
-  SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as profileApi from '../../api/profileApi';
 import { getMyStore } from '../../api/storesApi';
@@ -20,8 +23,10 @@ import AppButton from '../../components/common/AppButton';
 import AppInput from '../../components/common/AppInput';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { colors, shadows, spacing, typography } from '../../theme';
-import { formatPrice, getErrorMessage, getPayload } from '../../utils/apiResponse';
+import { formatPrice } from '../../utils/formatters';
+import { getErrorMessage, getPayload } from '../../utils/apiResponse';
 
 const roleVariant = {
   BUYER: 'accent',
@@ -30,7 +35,9 @@ const roleVariant = {
 };
 
 export default function ProfileScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { logout, updateUser } = useAuth();
+  const { showInfo } = useToast();
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null);
   const [appInfo, setAppInfo] = useState(null);
@@ -41,6 +48,7 @@ export default function ProfileScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const loadProfile = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -119,6 +127,7 @@ export default function ProfileScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.loadingWrap}>
           <LoadingSpinner />
         </View>
@@ -128,11 +137,22 @@ export default function ProfileScreen({ navigation }) {
 
   const role = profile?.role ?? 'BUYER';
   const displayName = profile?.fullName || profile?.username || 'Usuario';
+  const headerContentOpacity = scrollY.interpolate({
+    inputRange: [0, 54, 96],
+    outputRange: [1, 0.25, 0],
+    extrapolate: 'clamp',
+  });
+  const topFadeOpacity = scrollY.interpolate({
+    inputRange: [10, 90],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+      <StatusBar style="light" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
-        <ScrollView
+        <Animated.ScrollView
           refreshControl={(
             <RefreshControl
               tintColor={colors.primary}
@@ -143,8 +163,14 @@ export default function ProfileScreen({ navigation }) {
           )}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
         >
-          <View style={styles.profileHeader}>
+          <View style={[styles.profileHeader, { paddingTop: insets.top + spacing.xl }]}>
+            <Animated.View style={[styles.profileHeaderContent, { opacity: headerContentOpacity }]}>
             <TouchableOpacity
               activeOpacity={0.82}
               onPress={() => setIsEditing((current) => !current)}
@@ -154,9 +180,19 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+              {isEditing ? (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => showInfo('La subida de fotos estará disponible próximamente')}
+                  style={styles.cameraBadge}
+                >
+                  <Ionicons name="camera-outline" size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              ) : null}
             </View>
             <Text style={styles.headerName}>{displayName}</Text>
             <AppBadge label={role} variant={roleVariant[role] ?? 'gray'} />
+            </Animated.View>
           </View>
 
           {error ? (
@@ -221,7 +257,9 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={styles.menuCard}>
             <MenuSection title="Mi cuenta" />
-            <MenuRow icon="receipt-outline" label="Mis pedidos" onPress={() => navigation.navigate('Pedidos')} />
+            {role === 'BUYER' ? (
+              <MenuRow icon="receipt-outline" label="Mis pedidos" onPress={() => navigation.navigate('Pedidos')} />
+            ) : null}
             <MenuRow icon="chatbubble-outline" label="Mis conversaciones" onPress={() => navigation.navigate('Mensajes')} />
 
             {role === 'SELLER' ? (
@@ -231,6 +269,11 @@ export default function ProfileScreen({ navigation }) {
                   icon="storefront-outline"
                   label="Mi tienda"
                   onPress={() => myStore?.id && navigation.navigate('StoreDetail', { storeId: myStore.id })}
+                />
+                <MenuRow
+                  icon="cube-outline"
+                  label="Mis productos"
+                  onPress={() => navigation.navigate('SellerProducts')}
                 />
               </>
             ) : null}
@@ -242,7 +285,23 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.dangerDivider} />
             <MenuRow icon="log-out-outline" label="Cerrar sesión" danger noChevron onPress={confirmLogout} />
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.profileTopFade,
+            {
+              height: insets.top + 38,
+              opacity: topFadeOpacity,
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={['rgba(27,67,50,0.92)', 'rgba(27,67,50,0.5)', 'rgba(27,67,50,0)']}
+            locations={[0, 0.5, 1]}
+            style={styles.profileTopGradient}
+          />
+        </Animated.View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -305,6 +364,19 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     backgroundColor: colors.secondary,
   },
+  profileHeaderContent: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  profileTopFade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  profileTopGradient: {
+    flex: 1,
+  },
   editButton: {
     position: 'absolute',
     top: spacing.md,
@@ -324,6 +396,19 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     backgroundColor: colors.accent,
     marginBottom: spacing.md,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   avatarText: {
     ...typography.h1,

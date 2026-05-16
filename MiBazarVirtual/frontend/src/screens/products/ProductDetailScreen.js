@@ -1,17 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppBadge from '../../components/common/AppBadge';
+import AppImage from '../../components/common/AppImage';
 import AppButton from '../../components/common/AppButton';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
@@ -20,7 +21,9 @@ import { getProduct } from '../../api/productsApi';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { colors, shadows, spacing, typography } from '../../theme';
-import { formatPrice, getErrorMessage, getPayload } from '../../utils/apiResponse';
+import { formatPrice } from '../../utils/formatters';
+import { getErrorMessage, getList, getPayload } from '../../utils/apiResponse';
+import { hp, scale } from '../../utils/responsive';
 
 const getProductImage = (product) => (
   product?.imageUrl ?? product?.mainImageUrl ?? product?.images?.[0]?.url ?? null
@@ -37,6 +40,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   const { productId } = route.params;
   const { user } = useAuth();
   const { addItem } = useCart();
+  const insets = useSafeAreaInsets();
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -65,6 +69,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
         <SkeletonLoader width="100%" height={280} borderRadius={0} />
         <View style={styles.loadingContent}>
           <SkeletonLoader width="40%" height={24} borderRadius={12} />
@@ -79,6 +84,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   if (error) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.centerState}>
           <Text style={styles.errorText}>{error}</Text>
           <AppButton title="Volver" variant="outline" onPress={() => navigation.goBack()} />
@@ -93,6 +99,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   const description = product.description ?? 'Sin descripción disponible.';
   const canToggleDescription = description.length > 100;
   const canBuy = user?.role === 'BUYER';
+  const canChat = user?.role === 'BUYER' && stock > 0;
 
   const handleAddToCart = () => {
     addItem(product, quantity);
@@ -109,6 +116,30 @@ export default function ProductDetailScreen({ navigation, route }) {
     setStartingChat(true);
 
     try {
+      const conversationsResponse = await chatApi.getConversations();
+      const existingConversation = getList(conversationsResponse).find((conversation) => (
+        Number(conversation.sellerId) === Number(sellerId)
+      ));
+
+      if (existingConversation) {
+        navigation.navigate('Chat', {
+          conversationId: existingConversation.id,
+          otherUsername: store?.name ?? existingConversation.otherParticipantUsername ?? 'Tienda',
+          productId: existingConversation.productId ?? product.id,
+          storeId: store?.id,
+          productContext: {
+            id: product.id,
+            name: product.name,
+            imageUrl,
+            price: product.price,
+            unit: product.unit,
+            storeId: store?.id,
+            storeName: store?.name,
+          },
+        });
+        return;
+      }
+
       const response = await chatApi.startConversation({
         productId: product.id,
         sellerId,
@@ -119,6 +150,16 @@ export default function ProductDetailScreen({ navigation, route }) {
         conversationId: conversation.id,
         otherUsername: store?.name ?? conversation.otherParticipantUsername ?? 'Tienda',
         productId: product.id,
+        storeId: store?.id,
+        productContext: {
+          id: product.id,
+          name: product.name,
+          imageUrl,
+          price: product.price,
+          unit: product.unit,
+          storeId: store?.id,
+          storeName: store?.name,
+        },
       });
     } catch (chatError) {
       Alert.alert('Error', getErrorMessage(chatError, 'No se pudo iniciar la conversación.'));
@@ -129,15 +170,10 @@ export default function ProductDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.imageWrap}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
-          ) : (
-            <View style={styles.fallbackImage}>
-              <Text style={styles.fallbackEmoji}>🍽️</Text>
-            </View>
-          )}
+          <AppImage uri={imageUrl} style={styles.image} fallbackEmoji="🍽️" />
           <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
@@ -182,7 +218,7 @@ export default function ProductDetailScreen({ navigation, route }) {
         </View>
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
         {canBuy ? (
           <>
             <View style={styles.quantitySelector}>
@@ -215,9 +251,11 @@ export default function ProductDetailScreen({ navigation, route }) {
             </Text>
           </View>
         )}
-        <TouchableOpacity activeOpacity={0.85} disabled={startingChat} onPress={handleChat} style={styles.chatButton}>
-          <Ionicons name={startingChat ? 'ellipsis-horizontal' : 'chatbubble-outline'} size={20} color={colors.secondary} />
-        </TouchableOpacity>
+        {canChat ? (
+          <TouchableOpacity activeOpacity={0.85} disabled={startingChat} onPress={handleChat} style={styles.chatButton}>
+            <Ionicons name={startingChat ? 'ellipsis-horizontal' : 'chatbubble-outline'} size={20} color={colors.secondary} />
+          </TouchableOpacity>
+        ) : null}
       </View>
     </SafeAreaView>
   );
@@ -253,14 +291,14 @@ const styles = StyleSheet.create({
     paddingBottom: 112,
   },
   imageWrap: {
-    height: 280,
+    height: hp(35),
   },
   image: {
     width: '100%',
-    height: 280,
+    height: hp(35),
   },
   fallbackImage: {
-    height: 280,
+    height: hp(35),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
@@ -272,11 +310,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.md,
     left: spacing.md,
-    width: 36,
-    height: 36,
+    width: scale(36),
+    height: scale(36),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: scale(18),
     backgroundColor: colors.surface,
   },
   contentCard: {
@@ -398,11 +436,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   quantityButton: {
-    width: 36,
-    height: 36,
+    width: scale(36),
+    height: scale(36),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: scale(18),
   },
   quantityOutline: {
     borderWidth: 1,
@@ -432,11 +470,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   chatButton: {
-    width: 36,
-    height: 36,
+    width: scale(36),
+    height: scale(36),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: scale(18),
     borderWidth: 1,
     borderColor: colors.secondary,
     marginLeft: spacing.sm,

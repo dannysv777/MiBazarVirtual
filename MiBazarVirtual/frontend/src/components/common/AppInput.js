@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { colors, spacing, typography } from '../../theme';
+import { scale } from '../../utils/responsive';
 
 export default function AppInput({
   label,
@@ -38,7 +39,7 @@ export default function AppInput({
   return (
     <View style={styles.wrapper}>
       <View style={[styles.container, focused && styles.focused, error && styles.errorBorder, multiline && styles.multilineContainer]}>
-        {leftIcon ? <Ionicons name={leftIcon} size={20} color={colors.textSecondary} style={styles.leftIcon} /> : null}
+        {leftIcon ? <Ionicons name={leftIcon} size={scale(20)} color={colors.textSecondary} style={styles.leftIcon} /> : null}
         <Animated.Text style={[styles.label, labelStyle, leftIcon && styles.labelWithLeftIcon]}>
           {label}
         </Animated.Text>
@@ -57,7 +58,7 @@ export default function AppInput({
         />
         {rightIcon ? (
           <TouchableOpacity activeOpacity={0.7} onPress={rightIcon.onPress} style={styles.rightIcon}>
-            <Ionicons name={rightIcon.name} size={20} color={colors.textSecondary} />
+            <Ionicons name={rightIcon.name} size={scale(20)} color={colors.textSecondary} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -71,11 +72,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   container: {
-    height: 56,
+    height: scale(56),
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: scale(12),
     justifyContent: 'center',
   },
   focused: {
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
   },
   multilineContainer: {
-    height: 112,
+    height: scale(112),
     paddingTop: spacing.md,
     justifyContent: 'flex-start',
   },
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
     paddingRight: 44,
   },
   multilineInput: {
-    minHeight: 88,
+    minHeight: scale(88),
     textAlignVertical: 'top',
   },
   leftIcon: {

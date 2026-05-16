@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -8,12 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppButton from '../../components/common/AppButton';
 import AppInput from '../../components/common/AppInput';
 import { useAuth } from '../../context/AuthContext';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { getErrorMessage } from '../../utils/apiResponse';
+import { scale } from '../../utils/responsive';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -83,10 +86,12 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" backgroundColor="transparent" translucent />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardView}
+      >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Crea tu cuenta</Text>
         <Text style={styles.subtitle}>Elige cómo usarás MiBazarVirtual</Text>
@@ -149,7 +154,8 @@ export default function RegisterScreen({ navigation }) {
           <Text style={styles.backText}>¿Ya tienes cuenta? Inicia sesión</Text>
         </TouchableOpacity>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -171,6 +177,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
   },
+  keyboardView: {
+    flex: 1,
+  },
   content: {
     padding: spacing.md,
     paddingTop: spacing.xl,
@@ -191,8 +200,10 @@ const styles = StyleSheet.create({
   roleCard: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(90),
     padding: spacing.md,
-    borderRadius: 12,
+    borderRadius: scale(12),
     ...shadows.card,
   },
   roleCardSelected: {

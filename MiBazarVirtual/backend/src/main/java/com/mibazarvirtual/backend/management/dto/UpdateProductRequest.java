@@ -14,6 +14,7 @@ public record UpdateProductRequest(
         @Min(0) Integer stock,
         Product.Unit unit,
         Long categoryId,
-        @Size(max = 500) String imageUrl
+        @Size(max = 500) String imageUrl,
+        Product.Status status
 ) {
 }

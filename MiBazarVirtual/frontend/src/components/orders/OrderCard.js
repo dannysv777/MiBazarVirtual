@@ -1,7 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { colors, shadows, spacing, typography } from '../../theme';
-import { formatDate, formatPrice } from '../../utils/apiResponse';
+import { formatDate, formatPrice } from '../../utils/formatters';
 import OrderStatusBadge from './OrderStatusBadge';
 
 const getItemCount = (order) => (

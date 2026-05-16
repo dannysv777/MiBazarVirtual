@@ -7,6 +7,11 @@ import { colors, spacing, typography } from '../../theme';
 export default function CategoryChip({ category, isActive = false, onPress }) {
   const activeValue = useRef(new Animated.Value(isActive ? 1 : 0)).current;
 
+  const handlePress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress?.();
+  };
+
   useEffect(() => {
     Animated.timing(activeValue, {
       toValue: isActive ? 1 : 0,
@@ -38,17 +43,17 @@ export default function CategoryChip({ category, isActive = false, onPress }) {
 
 const styles = StyleSheet.create({
   chip: {
+    height: 40,
+    minWidth: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 14,
-    paddingVertical: spacing.sm,
     borderRadius: 20,
     marginRight: spacing.sm,
   },
   text: {
     ...typography.small,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });
-  const handlePress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPress?.();
-  };

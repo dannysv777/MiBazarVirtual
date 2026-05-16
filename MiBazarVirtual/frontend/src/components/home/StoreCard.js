@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { colors, shadows, spacing, typography } from '../../theme';
+import { scale } from '../../utils/responsive';
 
 export default function StoreCard({ store, onPress }) {
   const initial = store.name?.charAt(0)?.toUpperCase() ?? 'M';
@@ -21,30 +22,30 @@ export default function StoreCard({ store, onPress }) {
 
 const styles = StyleSheet.create({
   card: {
-    width: 160,
+    width: scale(160),
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: scale(16),
     overflow: 'hidden',
     marginRight: spacing.md,
     ...shadows.card,
   },
   imagePlaceholder: {
-    height: 100,
+    height: scale(100),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.secondary,
   },
   initial: {
-    fontSize: 32,
+    fontSize: scale(32),
     fontWeight: '700',
     color: colors.surface,
   },
   content: {
-    padding: 10,
+    padding: scale(10),
   },
   name: {
     ...typography.bodyBold,
-    minHeight: 38,
+    minHeight: scale(38),
     textAlign: 'center',
   },
   rating: {
