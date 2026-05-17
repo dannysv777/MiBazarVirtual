@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  FlatList,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,9 +15,15 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import AppBadge from '../../components/common/AppBadge';
 import AppImage from '../../components/common/AppImage';
 import AppButton from '../../components/common/AppButton';
+import FavoriteButton from '../../components/common/FavoriteButton';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
+import ProductCard from '../../components/home/ProductCard';
+import StoreStatusBadge from '../../components/stores/StoreStatusBadge';
 import * as chatApi from '../../api/chatApi';
+import * as favoritesApi from '../../api/favoritesApi';
+import * as recommendationsApi from '../../api/recommendationsApi';
 import { getProduct } from '../../api/productsApi';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -24,14 +31,16 @@ import { colors, shadows, spacing, typography } from '../../theme';
 import { formatPrice } from '../../utils/formatters';
 import { getErrorMessage, getList, getPayload } from '../../utils/apiResponse';
 import { hp, scale } from '../../utils/responsive';
+import { isStoreOpen } from '../../utils/storeSchedule';
 
 const getProductImage = (product) => (
-  product?.imageUrl ?? product?.mainImageUrl ?? product?.images?.[0]?.url ?? null
+  product?.imageUrl ?? product?.mainImageUrl ?? product?.coverImage ?? product?.images?.[0]?.url ?? null
 );
 
 const getStore = (product) => product?.store ?? {
   id: product?.storeId,
   name: product?.storeName,
+  schedule: product?.storeSchedule,
   rating: product?.storeRating,
   sellerId: product?.sellerId,
 };
@@ -47,6 +56,8 @@ export default function ProductDetailScreen({ navigation, route }) {
   const [startingChat, setStartingChat] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const [similarProducts, setSimilarProducts] = useState([]);
+  const [initialIsFavorite, setInitialIsFavorite] = useState(false);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -66,10 +77,41 @@ export default function ProductDetailScreen({ navigation, route }) {
     loadProduct();
   }, [productId]);
 
+  useEffect(() => {
+    const loadSimilarProducts = async () => {
+      try {
+        const response = await recommendationsApi.getSimilarProducts(productId, 6);
+        setSimilarProducts(getList(response));
+      } catch (similarError) {
+        setSimilarProducts([]);
+      }
+    };
+
+    loadSimilarProducts();
+  }, [productId]);
+
+  useEffect(() => {
+    const loadFavoriteState = async () => {
+      if (user?.role !== 'BUYER') {
+        setInitialIsFavorite(false);
+        return;
+      }
+
+      try {
+        const response = await favoritesApi.checkIsFavorite(productId);
+        setInitialIsFavorite(Boolean(getPayload(response)?.isFavorite));
+      } catch (favoriteError) {
+        setInitialIsFavorite(false);
+      }
+    };
+
+    loadFavoriteState();
+  }, [productId, user?.role]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
         <SkeletonLoader width="100%" height={280} borderRadius={0} />
         <View style={styles.loadingContent}>
           <SkeletonLoader width="40%" height={24} borderRadius={12} />
@@ -84,7 +126,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   if (error) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.centerState}>
           <Text style={styles.errorText}>{error}</Text>
           <AppButton title="Volver" variant="outline" onPress={() => navigation.goBack()} />
@@ -95,6 +137,7 @@ export default function ProductDetailScreen({ navigation, route }) {
 
   const imageUrl = getProductImage(product);
   const store = getStore(product);
+  const storeOpenState = isStoreOpen(store?.schedule ?? store?.openingHours);
   const stock = Number(product.stock ?? 0);
   const description = product.description ?? 'Sin descripción disponible.';
   const canToggleDescription = description.length > 100;
@@ -103,6 +146,17 @@ export default function ProductDetailScreen({ navigation, route }) {
 
   const handleAddToCart = () => {
     addItem(product, quantity);
+  };
+
+  const handleShare = async () => {
+    const price = Number(product.price ?? 0).toFixed(2);
+    const unit = product.unit ?? 'u';
+    const storeName = store?.name ?? product?.storeName ?? 'MiBazarVirtual';
+
+    await Share.share({
+      title: product.name,
+      message: `🛒 Mira este producto en MiBazarVirtual:\n\n${product.name}\nPrecio: Q ${price}/${unit}\nTienda: ${storeName}\n\nDescarga MiBazarVirtual para comprarlo`,
+    });
   };
 
   const handleChat = async () => {
@@ -170,12 +224,24 @@ export default function ProductDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.imageWrap}>
           <AppImage uri={imageUrl} style={styles.image} fallbackEmoji="🍽️" />
           <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          {user?.role === 'BUYER' ? (
+            <FavoriteButton
+              productId={product.id}
+              initialIsFavorite={initialIsFavorite}
+              size={24}
+              style={styles.favoriteButton}
+              onChange={setInitialIsFavorite}
+            />
+          ) : null}
+          <TouchableOpacity activeOpacity={0.85} onPress={handleShare} style={styles.shareButton}>
+            <Ionicons name="share-outline" size={22} color={colors.surface} />
           </TouchableOpacity>
         </View>
 
@@ -200,11 +266,19 @@ export default function ProductDetailScreen({ navigation, route }) {
               <Ionicons name="storefront-outline" size={22} color={colors.secondary} />
             </View>
             <View style={styles.storeInfo}>
-              <Text style={styles.storeName}>{store?.name ?? 'Tienda'}</Text>
+              <View style={styles.storeNameRow}>
+                <Text style={styles.storeName} numberOfLines={1}>{store?.name ?? 'Tienda'}</Text>
+                <StoreStatusBadge schedule={store?.schedule ?? store?.openingHours} compact />
+              </View>
               <Text style={styles.storeRating}>⭐ {Number(store?.rating ?? store?.averageRating ?? 0).toFixed(1)}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
+          {storeOpenState.isOpen === false ? (
+            <Text style={styles.closedWarning}>
+              Esta tienda esta cerrada ahora. Puedes hacer tu pedido y sera atendido cuando abra.
+            </Text>
+          ) : null}
 
           <Text style={styles.descriptionTitle}>Descripción</Text>
           <Text style={styles.description} numberOfLines={expanded ? undefined : 3}>
@@ -214,6 +288,24 @@ export default function ProductDetailScreen({ navigation, route }) {
             <TouchableOpacity activeOpacity={0.7} onPress={() => setExpanded((current) => !current)}>
               <Text style={styles.moreText}>{expanded ? 'Ver menos' : 'Ver más'}</Text>
             </TouchableOpacity>
+          ) : null}
+
+          {similarProducts.length >= 2 ? (
+            <View style={styles.similarSection}>
+              <Text style={styles.similarTitle}>Tambien te puede gustar</Text>
+              <FlatList
+                data={similarProducts}
+                horizontal
+                keyExtractor={(item) => item.id.toString()}
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <ProductCard
+                    product={item}
+                    onPress={() => navigation.replace('ProductDetail', { productId: item.id })}
+                  />
+                )}
+              />
+            </View>
           ) : null}
         </View>
       </ScrollView>
@@ -317,6 +409,22 @@ const styles = StyleSheet.create({
     borderRadius: scale(18),
     backgroundColor: colors.surface,
   },
+  favoriteButton: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md + scale(44),
+  },
+  shareButton: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    width: scale(36),
+    height: scale(36),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: scale(18),
+    backgroundColor: 'rgba(0,0,0,0.32)',
+  },
   contentCard: {
     marginTop: -24,
     padding: spacing.md,
@@ -395,12 +503,24 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.sm,
   },
+  storeNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   storeName: {
     ...typography.bodyBold,
+    flex: 1,
   },
   storeRating: {
     ...typography.small,
     marginTop: 2,
+  },
+  closedWarning: {
+    ...typography.small,
+    color: colors.warning,
+    marginTop: spacing.sm,
+    marginLeft: spacing.xs,
   },
   descriptionTitle: {
     ...typography.bodyBold,
@@ -417,6 +537,13 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
     marginTop: spacing.sm,
+  },
+  similarSection: {
+    marginTop: spacing.lg,
+  },
+  similarTitle: {
+    ...typography.bodyBold,
+    marginBottom: spacing.sm,
   },
   bottomBar: {
     position: 'absolute',

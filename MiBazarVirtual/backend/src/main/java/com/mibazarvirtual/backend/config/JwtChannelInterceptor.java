@@ -33,12 +33,16 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         }
 
         try {
+            // En WebSocket no pasa automaticamente el filtro HTTP de Spring Security,
+            // por eso extraemos el token manualmente del primer frame STOMP CONNECT.
             String token = firstNativeHeader(accessor, "Authorization");
             if (token == null) {
                 token = firstNativeHeader(accessor, "token");
             }
 
             UserPrincipal principal = jwtTokenService.authenticate(token);
+            // Guardamos el usuario autenticado dentro de la sesion STOMP; luego llega
+            // como Principal en los metodos @MessageMapping del controlador de chat.
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
                             principal,

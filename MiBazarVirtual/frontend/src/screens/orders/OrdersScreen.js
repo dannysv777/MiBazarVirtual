@@ -1,5 +1,4 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
@@ -13,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as ordersApi from '../../api/ordersApi';
 import EmptyState from '../../components/common/EmptyState';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OrderCard from '../../components/orders/OrderCard';
 import { useAuth } from '../../context/AuthContext';
@@ -72,7 +72,7 @@ export default function OrdersScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <Text style={styles.title}>Pedidos</Text>
         <Text style={styles.subtitle}>{activeTab === 'SELLER' ? 'Pedidos recibidos' : 'Tus compras recientes'}</Text>

@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
@@ -15,7 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getCategories } from '../../api/categoriesApi';
 import { getProducts } from '../../api/productsApi';
+import * as recommendationsApi from '../../api/recommendationsApi';
 import EmptyState from '../../components/common/EmptyState';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import CategoryChip from '../../components/home/CategoryChip';
@@ -49,6 +50,7 @@ export default function ProductListScreen({ navigation, route }) {
   const [error, setError] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [discoveryTitle, setDiscoveryTitle] = useState('');
 
   const loadCategories = useCallback(async () => {
     try {
@@ -70,16 +72,58 @@ export default function ProductListScreen({ navigation, route }) {
     setError('');
 
     try {
-      const response = await getProducts({
-        q: submittedQuery || undefined,
-        categoryId: selectedCategoryId || undefined,
-        sortBy: selectedSort,
-        inStock: onlyInStock || undefined,
-        page: nextPage,
-        size: 20,
-      });
-      const nextProducts = getList(response);
-      const meta = getPageMeta(response);
+      const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+      const useDiscovery = !submittedQuery && !onlyInStock && selectedSort === 'newest' && nextPage === 0;
+      let nextProducts = [];
+      let meta = { last: true };
+
+      if (useDiscovery) {
+        let trendingProducts = [];
+        try {
+          const trendingResponse = await recommendationsApi.getTrending(selectedCategoryId, 20);
+          trendingProducts = getList(trendingResponse);
+        } catch (recommendationError) {
+          trendingProducts = [];
+        }
+        nextProducts = trendingProducts;
+
+        if (selectedCategoryId && trendingProducts.length < 10) {
+          const fallbackResponse = await getProducts({
+            categoryId: selectedCategoryId,
+            sortBy: selectedSort,
+            page: 0,
+            size: 20,
+          });
+          const seen = new Set(trendingProducts.map((product) => product.id));
+          nextProducts = [
+            ...trendingProducts,
+            ...getList(fallbackResponse).filter((product) => !seen.has(product.id)),
+          ].slice(0, 20);
+        }
+
+        if (!selectedCategoryId && !nextProducts.length) {
+          const fallbackResponse = await getProducts({
+            sortBy: selectedSort,
+            page: 0,
+            size: 20,
+          });
+          nextProducts = getList(fallbackResponse);
+        }
+
+        setDiscoveryTitle(selectedCategoryId ? `Tendencias en ${selectedCategory?.name ?? 'esta categoria'}` : 'Tendencias');
+      } else {
+        const response = await getProducts({
+          q: submittedQuery || undefined,
+          categoryId: selectedCategoryId || undefined,
+          sortBy: selectedSort,
+          inStock: onlyInStock || undefined,
+          page: nextPage,
+          size: 20,
+        });
+        nextProducts = getList(response);
+        meta = getPageMeta(response);
+        setDiscoveryTitle(submittedQuery ? 'Resultados de busqueda' : '');
+      }
 
       setProducts((current) => (append ? [...current, ...nextProducts] : nextProducts));
       setPage(nextPage);
@@ -91,7 +135,7 @@ export default function ProductListScreen({ navigation, route }) {
       setLoadingMore(false);
       setRefreshing(false);
     }
-  }, [onlyInStock, selectedCategoryId, selectedSort, submittedQuery]);
+  }, [categories, onlyInStock, selectedCategoryId, selectedSort, submittedQuery]);
 
   const triggerSearch = useCallback(() => {
     setPage(0);
@@ -158,7 +202,7 @@ export default function ProductListScreen({ navigation, route }) {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
@@ -279,6 +323,9 @@ export default function ProductListScreen({ navigation, route }) {
               onRefresh={() => loadProducts({ nextPage: 0, isRefresh: true })}
             />
           )}
+          ListHeaderComponent={discoveryTitle ? (
+            <Text style={styles.discoveryTitle}>{discoveryTitle}</Text>
+          ) : null}
           ListFooterComponent={loadingMore ? <LoadingSpinner size="small" /> : null}
           ListEmptyComponent={<EmptyState emoji="🔎" title="Sin resultados" subtitle="Prueba con otra búsqueda o filtro." />}
         />
@@ -449,6 +496,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 72,
+  },
+  discoveryTitle: {
+    ...typography.bodyBold,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
   },
   columnWrapper: {
     gap: 12,

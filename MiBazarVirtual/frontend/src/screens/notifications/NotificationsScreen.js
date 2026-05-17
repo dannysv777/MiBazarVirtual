@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -11,44 +10,37 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { RectButton, Swipeable } from 'react-native-gesture-handler';
 
-import * as chatApi from '../../api/chatApi';
-import * as ordersApi from '../../api/ordersApi';
+import * as notificationsApi from '../../api/notificationsApi';
 import EmptyState from '../../components/common/EmptyState';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
-import { useChat } from '../../context/ChatContext';
+import { useNotifications } from '../../context/NotificationContext';
+import { useToast } from '../../context/ToastContext';
 import { colors, spacing, typography } from '../../theme';
-import { formatRelativeTime } from '../../utils/formatters';
-import { getChatPreviewText } from '../../utils/chatMessage';
 import { getErrorMessage, getList } from '../../utils/apiResponse';
 
-const tabs = [
-  { key: 'chats', label: 'Chats', icon: 'chatbubble-outline' },
-  { key: 'orders', label: 'Pedidos', icon: 'receipt-outline' },
-  { key: 'news', label: 'Novedades', icon: 'sparkles-outline' },
-  { key: 'promos', label: 'Promos', icon: 'pricetag-outline' },
-];
-
-const orderLabels = {
-  PENDING: 'Pedido pendiente',
-  CONFIRMED: 'Pedido confirmado',
-  IN_PROGRESS: 'Pedido en camino',
-  DELIVERED: 'Pedido entregado',
-  CANCELLED: 'Pedido cancelado',
+const typeConfig = {
+  ORDER_CONFIRMED: { emoji: '✅', bg: colors.accent },
+  ORDER_IN_PROGRESS: { emoji: '🛵', bg: colors.warning },
+  ORDER_DELIVERED: { emoji: '🎉', bg: colors.success },
+  ORDER_CANCELLED: { emoji: '❌', bg: colors.error },
+  NEW_MESSAGE: { emoji: '💬', bg: colors.primary },
+  NEW_ORDER_RECEIVED: { emoji: '📦', bg: colors.secondary },
+  REVIEW_RECEIVED: { emoji: '⭐', bg: colors.warning },
+  PRODUCT_BACK_IN_STOCK: { emoji: '🔄', bg: colors.accent },
 };
 
 export default function NotificationsScreen({ navigation }) {
   const { user } = useAuth();
-  const { unreadCount, refreshUnreadCount } = useChat();
-  const [activeTab, setActiveTab] = useState('chats');
-  const [conversations, setConversations] = useState([]);
-  const [orders, setOrders] = useState([]);
+  const { unreadCount, markAllRead, refreshUnreadCount } = useNotifications();
+  const { showError, showSuccess } = useToast();
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-
-  const isSeller = user?.role === 'SELLER';
 
   const loadNotifications = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -59,33 +51,16 @@ export default function NotificationsScreen({ navigation }) {
     setError('');
 
     try {
-      const [conversationsResult, ordersResult] = await Promise.allSettled([
-        chatApi.getConversations(),
-        isSeller
-          ? ordersApi.getSellerOrders({ page: 0, size: 20 })
-          : ordersApi.getOrders({ page: 0, size: 20 }),
-      ]);
-
-      if (conversationsResult.status === 'fulfilled') {
-        setConversations(getList(conversationsResult.value));
-      }
-
-      if (ordersResult.status === 'fulfilled') {
-        setOrders(getList(ordersResult.value));
-      }
-
-      if (conversationsResult.status === 'rejected' && ordersResult.status === 'rejected') {
-        throw conversationsResult.reason;
-      }
-
-      refreshUnreadCount();
+      const response = await notificationsApi.getNotifications({ page: 0, size: 30 });
+      setNotifications(getList(response));
+      await markAllRead();
     } catch (notificationError) {
       setError(getErrorMessage(notificationError, 'No pudimos cargar tus notificaciones.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isSeller, refreshUnreadCount]);
+  }, [markAllRead]);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,154 +68,117 @@ export default function NotificationsScreen({ navigation }) {
     }, [loadNotifications])
   );
 
-  const notifications = useMemo(() => {
-    if (activeTab === 'chats') {
-      const totalUnread = conversations.reduce((sum, conversation) => (
-        sum + Number(conversation.unreadCount ?? 0)
-      ), 0);
-      const lastConversation = conversations
-        .filter((conversation) => conversation.lastMessage)
-        .sort((a, b) => (
-          new Date(b.lastMessageTime ?? b.updatedAt ?? 0) - new Date(a.lastMessageTime ?? a.updatedAt ?? 0)
-        ))[0];
-
-      return [
-        {
-          id: 'chat-summary',
-          icon: 'chatbubble-ellipses-outline',
-          title: totalUnread > 0 ? `${totalUnread} mensajes sin leer` : 'Mensajes',
-          subtitle: lastConversation
-            ? `Ultimo mensaje: ${getChatPreviewText(lastConversation.lastMessage)}`
-            : 'Revisa tus conversaciones con compradores y vendedores.',
-          time: lastConversation?.lastMessageTime ?? lastConversation?.updatedAt,
-          unreadCount: totalUnread,
-          onPress: () => navigation.navigate('Mensajes', { screen: 'Conversations' }),
-        },
-      ];
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllRead();
+      setNotifications((current) => current.map((item) => ({ ...item, isRead: true })));
+      showSuccess('Notificaciones marcadas como leidas');
+    } catch (markError) {
+      showError(getErrorMessage(markError, 'No pudimos marcar tus notificaciones.'));
     }
+  };
 
-    if (activeTab === 'orders') {
-      return orders
-        .filter((order) => ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'DELIVERED'].includes(order.status))
-        .map((order) => ({
-          id: `order-${order.id}`,
-          icon: 'receipt-outline',
-          title: orderLabels[order.status] ?? 'Actualizacion de pedido',
-          subtitle: `${order.storeName ?? 'Tienda'} - Q ${Number(order.total ?? 0).toFixed(2)}`,
-          time: order.updatedAt ?? order.createdAt,
-          onPress: () => navigation.navigate('Pedidos', {
-            screen: 'OrderDetail',
-            params: { orderId: order.id, isSeller, order },
-          }),
-        }));
+  const deleteNotification = async (id) => {
+    const previous = notifications;
+    setNotifications((current) => current.filter((item) => item.id !== id));
+
+    try {
+      await notificationsApi.deleteNotification(id);
+      refreshUnreadCount();
+    } catch (deleteError) {
+      setNotifications(previous);
+      showError(getErrorMessage(deleteError, 'No pudimos eliminar la notificacion.'));
     }
+  };
 
-    if (activeTab === 'news') {
-      if (isSeller) {
-        return [
-          {
-            id: 'seller-products',
-            icon: 'cube-outline',
-            title: 'Gestiona tus productos',
-            subtitle: 'Actualiza stock, pausa publicaciones o agrega nuevos productos.',
-            onPress: () => navigation.navigate('Productos', { screen: 'SellerProducts' }),
-          },
-          {
-            id: 'seller-orders',
-            icon: 'receipt-outline',
-            title: 'Revisa pedidos recibidos',
-            subtitle: 'Confirma pedidos pendientes y manten tus ventas al dia.',
-            onPress: () => navigation.navigate('Pedidos', { screen: 'Orders' }),
-          },
-        ];
+  const navigateFromNotification = async (notification) => {
+    try {
+      if (!notification.isRead) {
+        await notificationsApi.markOneAsRead(notification.id);
+        setNotifications((current) => current.map((item) => (
+          item.id === notification.id ? { ...item, isRead: true } : item
+        )));
+        refreshUnreadCount();
       }
-
-      return [
-        {
-          id: 'news-weekly',
-          icon: 'calendar-outline',
-          title: 'Compra semanal disponible',
-          subtitle: 'Revisa productos frecuentes y recomendaciones para repetir tu mercado.',
-          onPress: () => navigation.navigate('WeeklyPurchase'),
-        },
-        {
-          id: 'news-products',
-          icon: 'leaf-outline',
-          title: 'Productos frescos cerca de ti',
-          subtitle: 'Explora nuevas tiendas y productos agregados recientemente.',
-          onPress: () => navigation.navigate('ProductList', { title: 'Novedades' }),
-        },
-      ];
+    } catch (readError) {
+      showError(getErrorMessage(readError, 'No pudimos actualizar la notificacion.'));
     }
 
-    return [
-      {
-        id: 'promo-delivery',
-        icon: 'bicycle-outline',
-        title: 'Delivery destacado',
-        subtitle: 'Busca tiendas activas y consulta costos de envio antes de pedir.',
-        onPress: () => navigation.navigate('ProductList', { title: 'Promociones' }),
-      },
-      {
-        id: 'promo-stores',
-        icon: 'storefront-outline',
-        title: 'Promociones de temporada',
-        subtitle: 'Pronto veras ofertas especiales de vendedores locales aqui.',
-        onPress: () => navigation.navigate('ProductList', { title: 'Ofertas' }),
-      },
-    ];
-  }, [activeTab, conversations, isSeller, navigation, orders]);
+    const data = notification.data ?? {};
+    if (notification.type?.startsWith('ORDER') || notification.type === 'NEW_ORDER_RECEIVED') {
+      navigation.navigate('Pedidos', {
+        screen: 'OrderDetail',
+        params: {
+          orderId: data.orderId,
+          isSeller: user?.role === 'SELLER' || notification.type === 'NEW_ORDER_RECEIVED',
+        },
+      });
+      return;
+    }
 
-  const renderNotification = ({ item }) => (
-    <TouchableOpacity activeOpacity={0.82} onPress={item.onPress} style={styles.card}>
-      <View style={styles.iconCircle}>
-        <Ionicons name={item.icon} size={22} color={colors.primary} />
-      </View>
-      <View style={styles.cardBody}>
-        <View style={styles.cardTop}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-          {item.time ? <Text style={styles.time}>{formatRelativeTime(item.time)}</Text> : null}
-        </View>
-        <Text style={styles.cardSubtitle} numberOfLines={2}>{item.subtitle}</Text>
-      </View>
-      {item.unreadCount > 0 ? (
-        <View style={styles.unreadBadge}>
-          <Text style={styles.unreadText}>{item.unreadCount > 9 ? '9+' : item.unreadCount}</Text>
-        </View>
-      ) : null}
-    </TouchableOpacity>
+    if (notification.type === 'NEW_MESSAGE') {
+      navigation.navigate('Mensajes', {
+        screen: 'Chat',
+        params: { conversationId: data.conversationId },
+      });
+      return;
+    }
+
+    if (notification.type === 'PRODUCT_BACK_IN_STOCK') {
+      navigation.navigate('ProductDetail', { productId: data.productId });
+    }
+  };
+
+  const renderRightActions = (item) => (
+    <RectButton style={styles.deleteAction} onPress={() => deleteNotification(item.id)}>
+      <Ionicons name="trash-outline" size={22} color={colors.surface} />
+    </RectButton>
   );
+
+  const renderNotification = ({ item }) => {
+    const config = typeConfig[item.type] ?? { emoji: '🔔', bg: colors.primary };
+
+    return (
+      <Swipeable renderRightActions={() => renderRightActions(item)}>
+        <TouchableOpacity
+          activeOpacity={0.84}
+          onPress={() => navigateFromNotification(item)}
+          style={[styles.card, !item.isRead && styles.cardUnread]}
+        >
+          {!item.isRead ? <View style={styles.unreadDot} /> : null}
+          <View style={[styles.iconCircle, { backgroundColor: config.bg }]}>
+            <Text style={styles.iconEmoji}>{config.emoji}</Text>
+          </View>
+          <View style={styles.cardBody}>
+            <View style={styles.cardTop}>
+              <Text style={[styles.cardTitle, !item.isRead && styles.cardTitleUnread]} numberOfLines={1}>
+                {item.title}
+              </Text>
+              <Text style={styles.time}>{item.timeAgo}</Text>
+            </View>
+            <Text style={styles.cardSubtitle} numberOfLines={2}>{item.body}</Text>
+          </View>
+        </TouchableOpacity>
+      </Swipeable>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.title}>Notificaciones</Text>
-          <Text style={styles.subtitle}>
-            {unreadCount > 0 ? `${unreadCount} mensajes sin leer` : 'Actividad importante de tu cuenta'}
-          </Text>
+          <Text style={styles.subtitle}>Novedades de pedidos, mensajes y tienda</Text>
         </View>
-      </View>
-
-      <View style={styles.tabs}>
-        {tabs.map((tab) => {
-          const selected = activeTab === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              activeOpacity={0.82}
-              onPress={() => setActiveTab(tab.key)}
-              style={[styles.tabChip, selected ? styles.tabChipActive : styles.tabChipIdle]}
-            >
-              <Ionicons name={tab.icon} size={16} color={selected ? colors.surface : colors.textSecondary} />
-              <Text style={[styles.tabText, selected ? styles.tabTextActive : styles.tabTextIdle]}>{tab.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+        {unreadCount > 0 ? (
+          <TouchableOpacity activeOpacity={0.78} onPress={handleMarkAllRead} style={styles.readAllButton}>
+            <Text style={styles.readAllText}>Leer todo</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {error ? (
@@ -268,7 +206,7 @@ export default function NotificationsScreen({ navigation }) {
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={renderNotification}
           contentContainerStyle={notifications.length ? styles.listContent : styles.emptyContent}
           refreshControl={(
@@ -283,7 +221,7 @@ export default function NotificationsScreen({ navigation }) {
             <EmptyState
               emoji="🔔"
               title="Sin notificaciones"
-              subtitle="Cuando haya actividad importante aparecera aqui."
+              subtitle="Te avisaremos cuando haya novedades en tus pedidos y mensajes"
             />
           )}
         />
@@ -319,40 +257,19 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.small,
+    color: colors.textSecondary,
     marginTop: 2,
-    color: colors.textSecondary,
   },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    gap: 6,
+  readAllButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    backgroundColor: colors.primaryLight,
   },
-  tabChip: {
-    height: 38,
-    minWidth: 82,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 19,
-    gap: 5,
-    paddingHorizontal: 10,
-  },
-  tabChipActive: {
-    backgroundColor: colors.primary,
-  },
-  tabChipIdle: {
-    backgroundColor: colors.surface,
-  },
-  tabText: {
+  readAllText: {
     ...typography.tiny,
+    color: colors.primary,
     fontWeight: '800',
-  },
-  tabTextActive: {
-    color: colors.surface,
-  },
-  tabTextIdle: {
-    color: colors.textSecondary,
   },
   listContent: {
     padding: spacing.md,
@@ -364,7 +281,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   card: {
-    minHeight: 76,
+    minHeight: 78,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.sm,
@@ -372,13 +289,25 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: colors.surface,
   },
+  cardUnread: {
+    backgroundColor: colors.primaryLight,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginRight: spacing.sm,
+  },
   iconCircle: {
     width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 22,
-    backgroundColor: colors.primaryLight,
+  },
+  iconEmoji: {
+    fontSize: 22,
   },
   cardBody: {
     flex: 1,
@@ -389,33 +318,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardTitle: {
-    ...typography.bodyBold,
+    ...typography.body,
     flex: 1,
+    color: colors.textPrimary,
     marginRight: spacing.sm,
   },
-  time: {
-    ...typography.tiny,
-    color: colors.textLight,
+  cardTitleUnread: {
+    ...typography.bodyBold,
   },
   cardSubtitle: {
     ...typography.small,
     marginTop: 3,
     color: colors.textSecondary,
   },
-  unreadBadge: {
-    minWidth: 24,
-    height: 24,
+  time: {
+    ...typography.tiny,
+    color: colors.textLight,
+    textAlign: 'right',
+  },
+  deleteAction: {
+    width: 76,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    marginBottom: spacing.sm,
+    borderRadius: 14,
     backgroundColor: colors.error,
-    paddingHorizontal: spacing.xs,
-    marginLeft: spacing.sm,
-  },
-  unreadText: {
-    ...typography.tiny,
-    color: colors.surface,
-    fontWeight: '800',
   },
   errorCard: {
     flexDirection: 'row',

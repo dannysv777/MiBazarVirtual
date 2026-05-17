@@ -35,6 +35,8 @@ public class ChatController {
     private final SimpMessagingTemplate messagingTemplate;
     private final AuthenticatedUserResolver authenticatedUserResolver;
 
+    // Evento en tiempo real: el frontend envia a /app/chat.sendMessage.
+    // Guardamos el mensaje y luego lo publicamos a todos los suscritos a esa conversacion.
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Valid SendMessageRequest request, Principal principal) {
         Long senderId = authenticatedUserResolver.currentUserId((Authentication) principal);
@@ -42,6 +44,7 @@ public class ChatController {
         messagingTemplate.convertAndSend("/topic/conversation/" + request.conversationId(), message);
     }
 
+    // Evento liviano de "esta escribiendo"; no se guarda en base de datos.
     @MessageMapping("/chat.typing")
     public void typing(@Valid TypingNotification notification) {
         messagingTemplate.convertAndSend(
@@ -50,6 +53,7 @@ public class ChatController {
         );
     }
 
+    // REST: crea o recupera una conversacion antes de abrir la pantalla del chat.
     @PostMapping("/start")
     public ResponseEntity<ConversationDTO> startConversation(
             @Valid @RequestBody StartConversationRequest request,
@@ -64,12 +68,14 @@ public class ChatController {
         return ResponseEntity.ok(conversation);
     }
 
+    // REST: lista las conversaciones del usuario para la bandeja de mensajes.
     @GetMapping
     public ResponseEntity<List<ConversationDTO>> getConversations(Authentication authentication) {
         Long userId = authenticatedUserResolver.currentUserId(authentication);
         return ResponseEntity.ok(chatService.getConversations(userId));
     }
 
+    // REST: carga el historial paginado; al abrirlo marcamos como leidos los mensajes recibidos.
     @GetMapping("/{conversationId}/messages")
     public ResponseEntity<List<MessageDTO>> getMessages(
             @PathVariable Long conversationId,
@@ -82,6 +88,7 @@ public class ChatController {
         return ResponseEntity.ok(chatService.getMessages(conversationId, userId, pageable));
     }
 
+    // REST: contador global que alimenta badges/notificaciones en el frontend.
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Integer>> getUnreadCount(Authentication authentication) {
         Long userId = authenticatedUserResolver.currentUserId(authentication);

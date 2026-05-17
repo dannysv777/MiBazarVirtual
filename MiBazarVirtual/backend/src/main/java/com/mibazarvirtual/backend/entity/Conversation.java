@@ -32,6 +32,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 @NoArgsConstructor
 public class Conversation {
 
+    // Una conversacion representa el hilo entre comprador y vendedor sobre un producto inicial.
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -48,6 +49,7 @@ public class Conversation {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    // Hibernate asigna estas fechas automaticamente; updatedAt se usa para ordenar la bandeja.
     @CreationTimestamp
     private LocalDateTime createdAt;
 

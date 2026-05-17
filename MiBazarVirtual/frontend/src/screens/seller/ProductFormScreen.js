@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategories } from '../../api/categoriesApi';
 import * as productsApi from '../../api/productsApi';
 import AppButton from '../../components/common/AppButton';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import AppImage from '../../components/common/AppImage';
 import AppInput from '../../components/common/AppInput';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -118,7 +118,7 @@ export default function ProductFormScreen({ navigation, route, mode = 'create' }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -8,6 +7,7 @@ import {
   Modal,
   Platform,
   RefreshControl,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -15,13 +15,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as productsApi from '../../api/productsApi';
 import AppBadge from '../../components/common/AppBadge';
 import AppButton from '../../components/common/AppButton';
 import AppImage from '../../components/common/AppImage';
 import EmptyState from '../../components/common/EmptyState';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useToast } from '../../context/ToastContext';
 import { colors, shadows, spacing, typography } from '../../theme';
@@ -37,7 +37,6 @@ const filters = [
 ];
 
 export default function SellerProductsScreen({ navigation }) {
-  const insets = useSafeAreaInsets();
   const { showError, showSuccess } = useToast();
   const [products, setProducts] = useState([]);
   const [activeFilter, setActiveFilter] = useState('ALL');
@@ -146,6 +145,20 @@ export default function SellerProductsScreen({ navigation }) {
     }
   };
 
+  const shareProduct = async (product) => {
+    if (!product) return;
+    setMenuProduct(null);
+
+    const price = Number(product.price ?? 0).toFixed(2);
+    const unit = product.unit ?? 'u';
+    const storeName = product.store?.name ?? product.storeName ?? 'MiBazarVirtual';
+
+    await Share.share({
+      title: product.name,
+      message: `🛒 Mira este producto en MiBazarVirtual:\n\n${product.name}\nPrecio: Q ${price}/${unit}\nTienda: ${storeName}\n\nDescarga MiBazarVirtual para comprarlo`,
+    });
+  };
+
   const renderProduct = ({ item }) => (
     <View style={styles.productCard}>
       <AppImage uri={item.imageUrl} style={styles.productImage} fallbackEmoji="🛒" />
@@ -162,12 +175,19 @@ export default function SellerProductsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Mis productos</Text>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('CreateProduct')}
+          style={styles.headerAddButton}
+        >
+          <Ionicons name="add" size={24} color={colors.surface} />
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -217,19 +237,11 @@ export default function SellerProductsScreen({ navigation }) {
             <EmptyState
               emoji="📦"
               title="Aún no tienes productos"
-              subtitle="Toca el botón + para publicar tu primer producto."
+              subtitle="Toca el botón + de arriba para publicar tu primer producto."
             />
           )}
         />
       )}
-
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate('CreateProduct')}
-        style={[styles.fab, { bottom: Math.max(insets.bottom, 12) + 70 }]}
-      >
-        <Ionicons name="add" size={30} color={colors.surface} />
-      </TouchableOpacity>
 
       <ActionMenu
         product={menuProduct}
@@ -240,6 +252,7 @@ export default function SellerProductsScreen({ navigation }) {
           navigation.navigate('EditProduct', { product });
         }}
         onStock={() => openStockModal(menuProduct)}
+        onShare={() => shareProduct(menuProduct)}
         onToggle={() => toggleActive(menuProduct)}
         onDelete={() => confirmDelete(menuProduct)}
       />
@@ -263,7 +276,7 @@ function StockBadge({ stock }) {
   return <AppBadge variant="error" label="Agotado" />;
 }
 
-function ActionMenu({ product, onClose, onEdit, onStock, onToggle, onDelete }) {
+function ActionMenu({ product, onClose, onEdit, onStock, onShare, onToggle, onDelete }) {
   const isPaused = product?.status === 'PAUSED';
 
   return (
@@ -273,6 +286,7 @@ function ActionMenu({ product, onClose, onEdit, onStock, onToggle, onDelete }) {
           <Text style={styles.sheetTitle}>{product?.name}</Text>
           <ActionRow icon="create-outline" label="Editar producto" onPress={onEdit} />
           <ActionRow icon="cube-outline" label="Actualizar stock" onPress={onStock} />
+          <ActionRow icon="share-outline" label="Compartir producto" onPress={onShare} />
           <ActionRow
             icon={isPaused ? 'play-circle-outline' : 'pause-circle-outline'}
             label={isPaused ? 'Activar producto' : 'Pausar producto'}
@@ -344,6 +358,16 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
+    flex: 1,
+  },
+  headerAddButton: {
+    width: scale(40),
+    height: scale(40),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: scale(20),
+    backgroundColor: colors.primary,
+    ...shadows.card,
   },
   filterRow: {
     alignItems: 'center',
@@ -412,18 +436,6 @@ const styles = StyleSheet.create({
   },
   kebabButton: {
     padding: spacing.sm,
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: spacing.lg,
-    width: scale(58),
-    height: scale(58),
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: scale(29),
-    backgroundColor: colors.primary,
-    ...shadows.strong,
   },
   errorCard: {
     flexDirection: 'row',

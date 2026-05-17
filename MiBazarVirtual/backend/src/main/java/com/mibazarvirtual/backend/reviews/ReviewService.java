@@ -8,6 +8,7 @@ import com.mibazarvirtual.backend.exception.AlreadyReviewedException;
 import com.mibazarvirtual.backend.exception.OrderNotDeliveredException;
 import com.mibazarvirtual.backend.exception.OrderNotFoundException;
 import com.mibazarvirtual.backend.exception.UnauthorizedReviewException;
+import com.mibazarvirtual.backend.notification.NotificationService;
 import com.mibazarvirtual.backend.repository.OrderRepository;
 import com.mibazarvirtual.backend.repository.ReviewRepository;
 import com.mibazarvirtual.backend.reviews.dto.CreateReviewRequest;
@@ -28,6 +29,7 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final OrderRepository orderRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public ReviewResponse createReview(Long orderId, Long buyerId, CreateReviewRequest request) {
@@ -52,6 +54,7 @@ public class ReviewService {
 
         Review saved = reviewRepository.save(review);
         recalculateStoreRating(order.getStore());
+        notificationService.notifyReviewReceived(saved);
         log.info("Created review {} for order {}", saved.getId(), orderId);
         return ReviewResponse.from(saved);
     }

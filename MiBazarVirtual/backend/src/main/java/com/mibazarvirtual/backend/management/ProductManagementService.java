@@ -9,8 +9,10 @@ import com.mibazarvirtual.backend.exception.CategoryNotFoundException;
 import com.mibazarvirtual.backend.exception.ProductNotFoundException;
 import com.mibazarvirtual.backend.exception.StoreNotFoundException;
 import com.mibazarvirtual.backend.exception.UnauthorizedOwnerException;
+import com.mibazarvirtual.backend.favorite.FavoriteRepository;
 import com.mibazarvirtual.backend.management.dto.CreateProductRequest;
 import com.mibazarvirtual.backend.management.dto.UpdateProductRequest;
+import com.mibazarvirtual.backend.notification.NotificationService;
 import com.mibazarvirtual.backend.repository.CategoryRepository;
 import com.mibazarvirtual.backend.repository.ProductRepository;
 import com.mibazarvirtual.backend.repository.StoreRepository;
@@ -29,6 +31,8 @@ public class ProductManagementService {
     private final ProductRepository productRepository;
     private final StoreRepository storeRepository;
     private final CategoryRepository categoryRepository;
+    private final FavoriteRepository favoriteRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public ProductDTO create(Long sellerId, CreateProductRequest request) {
@@ -56,6 +60,7 @@ public class ProductManagementService {
     @Transactional
     public ProductDTO update(Long productId, Long sellerId, UpdateProductRequest request) {
         Product product = getOwnedProduct(productId, sellerId);
+        int oldStock = product.getStock();
         if (request.name() != null) product.setName(request.name().trim());
         if (request.description() != null) product.setDescription(request.description());
         if (request.price() != null) product.setPrice(request.price());
@@ -77,6 +82,7 @@ public class ProductManagementService {
             }
             product.setStatus(nextStatus);
         }
+        notifyBackInStockIfNeeded(product, oldStock, product.getStock());
         return ProductDTO.from(product);
     }
 
@@ -91,10 +97,12 @@ public class ProductManagementService {
     @Transactional
     public ProductDTO updateStock(Long productId, Long sellerId, Integer quantity) {
         Product product = getOwnedProduct(productId, sellerId);
+        int oldStock = product.getStock();
         product.setStock(quantity);
         if (product.getStatus() != Product.Status.DELETED) {
             product.setStatus(quantity == 0 ? Product.Status.OUT_OF_STOCK : Product.Status.ACTIVE);
         }
+        notifyBackInStockIfNeeded(product, oldStock, quantity);
         return ProductDTO.from(product);
     }
 
@@ -111,5 +119,20 @@ public class ProductManagementService {
             throw new UnauthorizedOwnerException("Seller does not own this product");
         }
         return product;
+    }
+
+    private void notifyBackInStockIfNeeded(Product product, int oldStock, int newStock) {
+        if (oldStock != 0 || newStock <= 0) {
+            return;
+        }
+
+        if (favoriteRepository.countByProductId(product.getId()) < 10) {
+            return;
+        }
+
+        notificationService.notifyProductBackInStock(
+                favoriteRepository.findUserIdsByProductId(product.getId()),
+                product
+        );
     }
 }

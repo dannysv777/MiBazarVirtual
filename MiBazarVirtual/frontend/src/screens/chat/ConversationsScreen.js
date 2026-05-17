@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -15,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as chatApi from '../../api/chatApi';
 import EmptyState from '../../components/common/EmptyState';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -149,7 +149,7 @@ export default function ConversationsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Mensajes</Text>

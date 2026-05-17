@@ -41,6 +41,7 @@ export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
   const [cartStoreId, setCartStoreId] = useState(null);
   const [cartStoreName, setCartStoreName] = useState(null);
+  const [cartPulseKey, setCartPulseKey] = useState(0);
   const storageKey = isAuthenticated && user?.id ? getCartStorageKey(user.id) : null;
 
   useEffect(() => {
@@ -106,6 +107,7 @@ export function CartProvider({ children }) {
       : [...items, normalized];
 
     await persist(nextItems);
+    setCartPulseKey((current) => current + 1);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!options.silent) {
       showSuccess(`"${normalized.name}" agregado al carrito`);
@@ -115,6 +117,7 @@ export function CartProvider({ children }) {
   const clearAndAdd = async (product, quantity, options = {}) => {
     const normalized = normalizeProduct(product, quantity);
     await persist([normalized]);
+    setCartPulseKey((current) => current + 1);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!options.silent) {
       showSuccess(`"${normalized.name}" agregado al carrito`);
@@ -178,8 +181,9 @@ export function CartProvider({ children }) {
       itemCount,
       subtotal,
       total,
+      cartPulseKey,
     };
-  }, [cartStoreId, cartStoreName, items, storageKey]);
+  }, [cartPulseKey, cartStoreId, cartStoreName, items, storageKey]);
 
   return (
     <CartContext.Provider value={value}>

@@ -30,6 +30,7 @@ import org.hibernate.annotations.CreationTimestamp;
 @NoArgsConstructor
 public class Message {
 
+    // Cada fila es un mensaje individual dentro de una conversacion.
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -45,6 +46,7 @@ public class Message {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    // Se marca true cuando el receptor abre el historial del chat.
     @Column(name = "is_read", nullable = false)
     private boolean read = false;
 

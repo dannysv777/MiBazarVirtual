@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -11,16 +10,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import EmptyState from '../../components/common/EmptyState';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import ProductCard from '../../components/home/ProductCard';
+import StoreStatusBadge from '../../components/stores/StoreStatusBadge';
 import { getStore, getStoreProducts, getStoreReviews } from '../../api/storesApi';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { formatDate } from '../../utils/formatters';
 import { getErrorMessage, getList, getPayload } from '../../utils/apiResponse';
 
 export default function StoreDetailScreen({ navigation, route }) {
-  const { storeId } = route.params;
+  const { storeId, sellerPreview = false } = route.params;
   const [store, setStore] = useState(null);
   const [products, setProducts] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -76,7 +77,7 @@ export default function StoreDetailScreen({ navigation, route }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.header}>
           <SkeletonLoader width="70%" height={28} borderRadius={12} />
           <SkeletonLoader width="45%" height={18} borderRadius={12} />
@@ -94,7 +95,7 @@ export default function StoreDetailScreen({ navigation, route }) {
   if (error && !store) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.centerState}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.goBack()} style={styles.backPill}>
@@ -110,11 +111,19 @@ export default function StoreDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="light" backgroundColor="transparent" translucent />
       <View style={styles.header}>
-        <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.headerBackButton}>
-          <Ionicons name="arrow-back" size={22} color={colors.surface} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.headerBackButton}>
+            <Ionicons name="arrow-back" size={22} color={colors.surface} />
+          </TouchableOpacity>
+          {sellerPreview ? (
+            <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('SellerStore')} style={styles.headerEditButton}>
+              <Ionicons name="pencil" size={18} color={colors.secondary} />
+              <Text style={styles.headerEditText}>Editar</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
         <Text style={styles.headerName}>{store.name}</Text>
         <Text style={styles.headerCity}>{store.city ?? 'Guatemala'}</Text>
         <Text style={styles.headerRating}>⭐ {rating}</Text>
@@ -123,7 +132,12 @@ export default function StoreDetailScreen({ navigation, route }) {
       <View style={styles.infoCard}>
         <InfoStat label="Rating" value={`⭐ ${rating}`} />
         <InfoStat label="Reseñas" value={`📦 ${reviewsCount}`} />
-        <InfoStat label="Horario" value={store.schedule ?? store.openingHours ?? 'Hoy'} />
+        <View style={styles.scheduleInfo}>
+          <StoreStatusBadge schedule={store.schedule ?? store.openingHours} />
+          <Text style={styles.scheduleText} numberOfLines={2}>
+            {store.schedule ?? store.openingHours ?? 'Horario no disponible'}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.tabSelector}>
@@ -218,13 +232,32 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
   headerBackButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 20,
-    marginBottom: spacing.md,
+  },
+  headerEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+  },
+  headerEditText: {
+    ...typography.small,
+    color: colors.secondary,
+    fontWeight: '800',
   },
   headerName: {
     ...typography.h2,
@@ -253,6 +286,18 @@ const styles = StyleSheet.create({
   infoStat: {
     flex: 1,
     alignItems: 'center',
+  },
+  scheduleInfo: {
+    flex: 1.35,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: spacing.sm,
+  },
+  scheduleText: {
+    ...typography.tiny,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   infoValue: {
     ...typography.bodyBold,

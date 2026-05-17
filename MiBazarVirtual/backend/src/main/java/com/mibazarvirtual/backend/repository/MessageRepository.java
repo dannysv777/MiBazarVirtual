@@ -14,10 +14,13 @@ import org.springframework.data.repository.query.Param;
 public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findByConversationIdOrderByCreatedAtAsc(Long conversationId);
 
+    // Historial paginado para no traer demasiados mensajes de golpe.
     Page<Message> findByConversationIdOrderByCreatedAtAsc(Long conversationId, Pageable pageable);
 
+    // Pendientes dentro de una conversacion especifica, ignorando los mensajes enviados por el usuario actual.
     int countByConversationIdAndReadFalseAndSenderIdNot(Long conversationId, Long senderId);
 
+    // Pendientes globales para el badge de mensajes/notificaciones.
     @Query("""
             select count(m)
             from Message m
@@ -29,8 +32,10 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     Message findTopByConversationIdOrderByCreatedAtDesc(Long conversationId);
 
+    // Limpieza automatica de mensajes antiguos.
     long deleteByCreatedAtBefore(LocalDateTime cutoff);
 
+    // Marca como leidos solo los mensajes recibidos, no los que envio el mismo usuario.
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update Message m

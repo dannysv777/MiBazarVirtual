@@ -7,6 +7,16 @@ const axiosInstance = axios.create({
 });
 
 let refreshPromise = null;
+const networkListeners = new Set();
+
+export const subscribeNetworkStatus = (listener) => {
+  networkListeners.add(listener);
+  return () => networkListeners.delete(listener);
+};
+
+const notifyNetworkStatus = (isOnline) => {
+  networkListeners.forEach((listener) => listener(isOnline));
+};
 
 axiosInstance.interceptors.request.use(async (config) => {
   const accessToken = await AsyncStorage.getItem('accessToken');
@@ -19,15 +29,20 @@ axiosInstance.interceptors.request.use(async (config) => {
 });
 
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    notifyNetworkStatus(true);
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
     if (error.code === 'ECONNABORTED') {
+      notifyNetworkStatus(false);
       return Promise.reject({ ...error, response: { data: { message: 'El servidor tardó demasiado. Intenta de nuevo.' } } });
     }
 
     if (!error.response) {
+      notifyNetworkStatus(false);
       return Promise.reject({ ...error, response: { data: { message: 'Sin conexión. Verifica tu internet.' } } });
     }
 

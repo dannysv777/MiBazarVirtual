@@ -41,6 +41,10 @@ export const getStore = async (id) => cleanResponse(await axiosInstance.get(`/ap
 
 export const getMyStore = () => axiosInstance.get('/api/stores/mine');
 
+export const createStore = (data) => axiosInstance.post('/api/stores', data);
+
+export const updateStore = (id, data) => axiosInstance.put(`/api/stores/${id}`, data);
+
 export const getStoreProducts = async (storeId, params) => {
   const response = await axiosInstance.get(`/api/stores/${storeId}/products`, { params });
   const payload = response.data?.data ?? response.data;

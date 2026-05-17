@@ -12,6 +12,7 @@ import com.mibazarvirtual.backend.exception.InvalidOrderStatusTransitionExceptio
 import com.mibazarvirtual.backend.exception.OrderNotFoundException;
 import com.mibazarvirtual.backend.exception.ProductNotFoundException;
 import com.mibazarvirtual.backend.exception.StoreNotFoundException;
+import com.mibazarvirtual.backend.notification.NotificationService;
 import com.mibazarvirtual.backend.orders.dto.CreateOrderRequest;
 import com.mibazarvirtual.backend.orders.dto.OrderItemRequest;
 import com.mibazarvirtual.backend.orders.dto.OrderResponse;
@@ -44,6 +45,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public OrderResponse createOrder(Long buyerId, CreateOrderRequest request) {
@@ -105,6 +107,7 @@ public class OrderService {
         });
 
         List<OrderItem> savedItems = orderItemRepository.saveAll(items);
+        notificationService.notifyNewOrderReceived(savedOrder);
         log.info("Created order {} for buyer {} and store {}", savedOrder.getId(), buyerId, store.getId());
         return OrderResponse.from(savedOrder, savedItems);
     }
@@ -141,6 +144,7 @@ public class OrderService {
         }
 
         order.setStatus(Order.Status.CANCELLED);
+        notificationService.notifyOrderCancelled(order, "Cancelado por el comprador");
         log.info("Cancelled order {} by buyer {}", orderId, buyerId);
         return OrderResponse.from(order, items);
     }
@@ -164,6 +168,7 @@ public class OrderService {
         }
         validateStatusTransition(order.getStatus(), nextStatus);
         order.setStatus(nextStatus);
+        notifyBuyerForStatus(order, nextStatus);
         log.info("Updated order {} status to {}", orderId, nextStatus);
         return toResponse(order);
     }
@@ -226,5 +231,16 @@ public class OrderService {
 
     private OrderResponse toResponse(Order order) {
         return OrderResponse.from(order, orderItemRepository.findByOrderIdOrderByIdAsc(order.getId()));
+    }
+
+    private void notifyBuyerForStatus(Order order, Order.Status nextStatus) {
+        switch (nextStatus) {
+            case CONFIRMED -> notificationService.notifyOrderConfirmed(order);
+            case IN_PROGRESS -> notificationService.notifyOrderInProgress(order);
+            case DELIVERED -> notificationService.notifyOrderDelivered(order);
+            case CANCELLED -> notificationService.notifyOrderCancelled(order, "Cancelado por la tienda");
+            default -> {
+            }
+        }
     }
 }

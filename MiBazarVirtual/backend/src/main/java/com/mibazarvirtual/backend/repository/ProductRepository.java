@@ -2,6 +2,7 @@
 package com.mibazarvirtual.backend.repository;
 
 import com.mibazarvirtual.backend.entity.Product;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,17 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     Page<Product> findByStoreIdAndStatus(Long storeId, Product.Status status, Pageable pageable);
 
     Page<Product> findByCategoryIdAndStatus(Long categoryId, Product.Status status, Pageable pageable);
+
+    @Query("""
+            select distinct p
+            from Product p
+            join fetch p.store s
+            join fetch p.category c
+            where p.status = com.mibazarvirtual.backend.entity.Product.Status.ACTIVE
+              and p.stock > 0
+              and s.status = com.mibazarvirtual.backend.entity.Store.Status.ACTIVE
+            """)
+    List<Product> findActiveInStockForRecommendations();
 
     boolean existsByCategoryId(Long categoryId);
 

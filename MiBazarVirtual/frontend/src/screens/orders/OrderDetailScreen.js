@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ordersApi from '../../api/ordersApi';
 import AppImage from '../../components/common/AppImage';
 import AppButton from '../../components/common/AppButton';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import AppInput from '../../components/common/AppInput';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OrderStatusBadge from '../../components/orders/OrderStatusBadge';
@@ -122,7 +122,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
         <LoadingSpinner />
       </SafeAreaView>
     );
@@ -131,7 +131,7 @@ export default function OrderDetailScreen({ navigation, route }) {
   if (error || !order) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.centerState}>
           <Text style={styles.errorText}>{error}</Text>
           <AppButton title="Volver" variant="outline" onPress={() => navigation.goBack()} />
@@ -144,7 +144,7 @@ export default function OrderDetailScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>

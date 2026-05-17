@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -20,6 +20,7 @@ import * as profileApi from '../../api/profileApi';
 import { getMyStore } from '../../api/storesApi';
 import AppBadge from '../../components/common/AppBadge';
 import AppButton from '../../components/common/AppButton';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import AppInput from '../../components/common/AppInput';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
@@ -36,7 +37,7 @@ const roleVariant = {
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { logout, updateUser } = useAuth();
+  const { logout, updateUser, user } = useAuth();
   const { showInfo } = useToast();
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null);
@@ -97,6 +98,12 @@ export default function ProfileScreen({ navigation }) {
     loadProfile();
   }, [loadProfile]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile(true);
+    }, [loadProfile])
+  );
+
   const handleSave = async () => {
     setSaving(true);
 
@@ -127,7 +134,7 @@ export default function ProfileScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.loadingWrap}>
           <LoadingSpinner />
         </View>
@@ -150,7 +157,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
-      <StatusBar style="light" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="light" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <Animated.ScrollView
           refreshControl={(
@@ -258,7 +265,15 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.menuCard}>
             <MenuSection title="Mi cuenta" />
             {role === 'BUYER' ? (
-              <MenuRow icon="receipt-outline" label="Mis pedidos" onPress={() => navigation.navigate('Pedidos')} />
+              <>
+                <MenuRow icon="receipt-outline" label="Mis pedidos" onPress={() => navigation.navigate('Pedidos')} />
+                <MenuRow
+                  icon="heart-outline"
+                  label="Mis favoritos"
+                  iconColor={colors.error}
+                  onPress={() => navigation.navigate('Favorites')}
+                />
+              </>
             ) : null}
             <MenuRow icon="chatbubble-outline" label="Mis conversaciones" onPress={() => navigation.navigate('Mensajes')} />
 
@@ -268,7 +283,17 @@ export default function ProfileScreen({ navigation }) {
                 <MenuRow
                   icon="storefront-outline"
                   label="Mi tienda"
-                  onPress={() => myStore?.id && navigation.navigate('StoreDetail', { storeId: myStore.id })}
+                  onPress={() => navigation.navigate('SellerStore', { storeId: user?.storeId ?? profile?.storeId ?? myStore?.id })}
+                />
+                <MenuRow
+                  icon="receipt-outline"
+                  label="Pedidos recibidos"
+                  onPress={() => navigation.navigate('SellerOrders')}
+                />
+                <MenuRow
+                  icon="eye-outline"
+                  label="Ver tienda publica"
+                  onPress={() => myStore?.id && navigation.navigate('StoreDetail', { storeId: myStore.id, sellerPreview: true })}
                 />
                 <MenuRow
                   icon="cube-outline"
@@ -330,10 +355,10 @@ function MenuSection({ title }) {
   return <Text style={styles.menuSection}>{title}</Text>;
 }
 
-function MenuRow({ icon, label, rightValue, onPress, danger = false, noChevron = false }) {
+function MenuRow({ icon, label, rightValue, onPress, danger = false, noChevron = false, iconColor }) {
   return (
     <TouchableOpacity activeOpacity={onPress ? 0.75 : 1} onPress={onPress} style={styles.menuRow}>
-      <Ionicons name={icon} size={20} color={danger ? colors.error : colors.textSecondary} />
+      <Ionicons name={icon} size={20} color={iconColor ?? (danger ? colors.error : colors.textSecondary)} />
       <Text style={[styles.menuLabel, danger && styles.dangerText]}>{label}</Text>
       {rightValue !== undefined ? <Text style={styles.rightValue}>{rightValue}</Text> : null}
       {!noChevron && onPress ? <Ionicons name="chevron-forward" size={18} color={colors.textLight} /> : null}

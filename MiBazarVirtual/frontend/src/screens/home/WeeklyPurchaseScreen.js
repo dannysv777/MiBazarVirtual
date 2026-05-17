@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as ordersApi from '../../api/ordersApi';
 import { getProducts } from '../../api/productsApi';
+import * as recommendationsApi from '../../api/recommendationsApi';
 import AppButton from '../../components/common/AppButton';
 import AppImage from '../../components/common/AppImage';
 import EmptyState from '../../components/common/EmptyState';
@@ -34,6 +35,7 @@ export default function WeeklyPurchaseScreen({ navigation }) {
   const [isEditing, setIsEditing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const saveWeeklyItems = async (items) => {
@@ -118,6 +120,14 @@ export default function WeeklyPurchaseScreen({ navigation }) {
     ]);
     setSearchQuery('');
     setSearchResults([]);
+
+    try {
+      const response = await recommendationsApi.getSimilarProducts(product.id, 8);
+      const existingIds = new Set([...weeklyItems.map((item) => item.productId), product.id]);
+      setSuggestions(getList(response).filter((item) => !existingIds.has(item.id)));
+    } catch (suggestionError) {
+      setSuggestions([]);
+    }
   };
 
   const addAllToCart = () => {
@@ -181,6 +191,10 @@ export default function WeeklyPurchaseScreen({ navigation }) {
         />
       ) : null}
 
+      {isEditing && !searchQuery && suggestions.length ? (
+        <ProductSuggestionRow title="Sugeridos para tu lista" products={suggestions} onAdd={addSearchResult} />
+      ) : null}
+
       <FlatList
         data={weeklyItems}
         keyExtractor={(item) => item.productId.toString()}
@@ -233,6 +247,27 @@ export default function WeeklyPurchaseScreen({ navigation }) {
   );
 }
 
+function ProductSuggestionRow({ title, products, onAdd }) {
+  return (
+    <View>
+      <Text style={styles.suggestionTitle}>{title}</Text>
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id.toString()}
+        horizontal
+        contentContainerStyle={styles.searchResults}
+        showsHorizontalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <TouchableOpacity activeOpacity={0.85} onPress={() => onAdd(item)} style={styles.resultCard}>
+            <AppImage uri={item.imageUrl} style={styles.resultImage} fallbackEmoji="🛒" />
+            <Text style={styles.resultName} numberOfLines={2}>{item.name}</Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -282,6 +317,13 @@ const styles = StyleSheet.create({
   searchResults: {
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
+  },
+  suggestionTitle: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: '800',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.xs,
   },
   resultCard: {
     width: scale(110),

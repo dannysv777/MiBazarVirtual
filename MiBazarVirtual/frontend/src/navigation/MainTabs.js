@@ -13,9 +13,11 @@ import { useChat } from '../context/ChatContext';
 import CartScreen from '../screens/cart/CartScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
 import ConversationsScreen from '../screens/chat/ConversationsScreen';
+import FavoritesScreen from '../screens/favorites/FavoritesScreen';
 import HomeScreen from '../screens/home/HomeScreen';
 import WeeklyPurchaseScreen from '../screens/home/WeeklyPurchaseScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
+import OrderConfirmationScreen from '../screens/orders/OrderConfirmationScreen';
 import OrderDetailScreen from '../screens/orders/OrderDetailScreen';
 import OrdersScreen from '../screens/orders/OrdersScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
@@ -23,7 +25,9 @@ import ProductDetailScreen from '../screens/products/ProductDetailScreen';
 import ProductListScreen from '../screens/products/ProductListScreen';
 import CreateProductScreen from '../screens/seller/CreateProductScreen';
 import EditProductScreen from '../screens/seller/EditProductScreen';
+import SellerOrdersScreen from '../screens/seller/SellerOrdersScreen';
 import SellerProductsScreen from '../screens/seller/SellerProductsScreen';
+import SellerStoreScreen from '../screens/seller/SellerStoreScreen';
 import StoreDetailScreen from '../screens/stores/StoreDetailScreen';
 
 const Tab = createBottomTabNavigator();
@@ -39,9 +43,10 @@ const Stack = createStackNavigator();
 const tabIcons = {
   Inicio: ['home', 'home-outline'],
   Buscar: ['search', 'search-outline'],
+  Favoritos: ['heart', 'heart-outline'],
   Carrito: ['cart', 'cart-outline'],
   Pedidos: ['receipt', 'receipt-outline'],
-  Productos: ['cube', 'cube-outline'],
+  'Mis Productos': ['cube', 'cube-outline'],
   Mensajes: ['chatbubble', 'chatbubble-outline'],
   Perfil: ['person', 'person-outline'],
 };
@@ -51,30 +56,34 @@ const fullScreenRoutes = new Set([
   'ProductDetail',
   'StoreDetail',
   'OrderDetail',
+  'OrderConfirmation',
   'Notifications',
   'CreateProduct',
   'EditProduct',
+  'SellerStore',
+  'SellerOrders',
   'WeeklyPurchase',
 ]);
 
 const initialStackScreens = {
   Inicio: 'Home',
   Buscar: 'ProductList',
-  Pedidos: 'Orders',
-  Productos: 'SellerProducts',
+  Favoritos: 'Favorites',
+  'Mis Productos': 'SellerProducts',
   Mensajes: 'Conversations',
   Perfil: 'Profile',
 };
 
 export default function MainTabs() {
   const { user } = useAuth();
-  const { itemCount } = useCart();
+  const { itemCount, cartPulseKey } = useCart();
   const { unreadCount } = useChat();
   const isBuyer = user?.role === 'BUYER';
+  const isSeller = user?.role === 'SELLER';
 
   return (
     <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={(props) => <CustomTabBar {...props} cartPulseKey={cartPulseKey} />}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
@@ -83,22 +92,23 @@ export default function MainTabs() {
     >
       <Tab.Screen name="Inicio" component={HomeCatalogStack} />
       {isBuyer ? <Tab.Screen name="Buscar" component={SearchCatalogStack} /> : null}
+      {isBuyer ? <Tab.Screen name="Favoritos" component={FavoritesStack} /> : null}
       {isBuyer ? (
         <Tab.Screen
           name="Carrito"
-          component={CartScreen}
+          component={CartStack}
           options={{ tabBarBadge: itemCount > 0 ? itemCount : undefined }}
         />
       ) : null}
-      {user?.role === 'SELLER' ? (
+      {isSeller ? (
         <Tab.Screen
-          name="Productos"
+          name="Mis Productos"
           component={SellerProductsStack}
         />
       ) : null}
       <Tab.Screen
         name="Pedidos"
-        component={OrdersStack}
+        component={isSeller ? SellerOrdersStack : OrdersStack}
       />
       <Tab.Screen
         name="Mensajes"
@@ -113,9 +123,10 @@ export default function MainTabs() {
   );
 }
 
-function CustomTabBar({ state, descriptors, navigation }) {
+function CustomTabBar({ state, descriptors, navigation, cartPulseKey }) {
   const insets = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(0)).current;
+  const cartScale = useRef(new Animated.Value(1)).current;
   const [barWidth, setBarWidth] = useState(0);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const focusedRoute = state.routes[state.index];
@@ -142,6 +153,15 @@ function CustomTabBar({ state, descriptors, navigation }) {
       useNativeDriver: true,
     }).start();
   }, [state.index, tabWidth, translateX]);
+
+  useEffect(() => {
+    if (!cartPulseKey) return;
+
+    Animated.sequence([
+      Animated.spring(cartScale, { toValue: 1.18, friction: 4, tension: 180, useNativeDriver: true }),
+      Animated.spring(cartScale, { toValue: 1, friction: 5, tension: 140, useNativeDriver: true }),
+    ]).start();
+  }, [cartPulseKey, cartScale]);
 
   if (keyboardVisible || fullScreenRoutes.has(nestedRouteName)) {
     return null;
@@ -179,8 +199,8 @@ function CustomTabBar({ state, descriptors, navigation }) {
         };
 
         return (
+          <Animated.View key={route.key} style={[styles.tabItemWrap, route.name === 'Carrito' && { transform: [{ scale: cartScale }] }]}>
           <TouchableOpacity
-            key={route.key}
             activeOpacity={0.78}
             accessibilityRole="button"
             accessibilityState={isFocused ? { selected: true } : {}}
@@ -199,6 +219,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
               {route.name}
             </Text>
           </TouchableOpacity>
+          </Animated.View>
         );
       })}
     </View>
@@ -216,6 +237,8 @@ function HomeCatalogStack() {
       <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="SellerProducts" component={SellerProductsScreen} />
+      <Stack.Screen name="SellerOrders" component={SellerOrdersScreen} />
+      <Stack.Screen name="SellerStore" component={SellerStoreScreen} />
       <Stack.Screen name="CreateProduct" component={CreateProductScreen} />
       <Stack.Screen name="EditProduct" component={EditProductScreen} />
     </Stack.Navigator>
@@ -243,13 +266,44 @@ function OrdersStack() {
   );
 }
 
+function CartStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Cart" component={CartScreen} />
+      <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function FavoritesStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Favorites" component={FavoritesScreen} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function SellerProductsStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SellerProducts" component={SellerProductsScreen} />
+      <Stack.Screen name="SellerStore" component={SellerStoreScreen} />
       <Stack.Screen name="CreateProduct" component={CreateProductScreen} />
       <Stack.Screen name="EditProduct" component={EditProductScreen} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function SellerOrdersStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SellerOrders" component={SellerOrdersScreen} />
+      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -269,8 +323,11 @@ function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Favorites" component={FavoritesScreen} />
       <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
       <Stack.Screen name="SellerProducts" component={SellerProductsScreen} />
+      <Stack.Screen name="SellerOrders" component={SellerOrdersScreen} />
+      <Stack.Screen name="SellerStore" component={SellerStoreScreen} />
       <Stack.Screen name="CreateProduct" component={CreateProductScreen} />
       <Stack.Screen name="EditProduct" component={EditProductScreen} />
     </Stack.Navigator>
@@ -298,6 +355,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 46,
     paddingTop: 10,
+  },
+  tabItemWrap: {
+    flex: 1,
   },
   activeIndicator: {
     position: 'absolute',

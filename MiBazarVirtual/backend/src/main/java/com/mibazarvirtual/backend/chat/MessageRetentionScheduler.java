@@ -20,6 +20,7 @@ public class MessageRetentionScheduler {
     @Transactional
     @Scheduled(cron = "0 0 3 * * *")
     public void deleteExpiredMessages() {
+        // Politica de retencion: a las 3:00 AM se eliminan mensajes con mas de 7 dias.
         LocalDateTime cutoff = LocalDateTime.now().minusDays(MESSAGE_RETENTION_DAYS);
         long deleted = messageRepository.deleteByCreatedAtBefore(cutoff);
 

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppButton from '../../components/common/AppButton';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import AppInput from '../../components/common/AppInput';
 import { useAuth } from '../../context/AuthContext';
 import { colors, shadows, spacing, typography } from '../../theme';
@@ -87,7 +87,7 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}

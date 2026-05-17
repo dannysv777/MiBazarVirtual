@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import AppImage from '../common/AppImage';
+import FavoriteButton from '../common/FavoriteButton';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -11,26 +12,52 @@ import { scale, wp } from '../../utils/responsive';
 const cardWidth = (wp(100) - scale(48)) / 2;
 
 const getProductImage = (product) => (
-  product.imageUrl ?? product.mainImageUrl ?? product.images?.find((image) => image?.url)?.url ?? null
+  product.imageUrl ?? product.mainImageUrl ?? product.coverImage ?? product.images?.find((image) => image?.url)?.url ?? null
 );
 
 const getStoreName = (product) => (
   product.store?.name ?? product.storeName ?? 'MiBazarVirtual'
 );
 
-export default function ProductCard({ product, onPress }) {
+export default function ProductCard({
+  product,
+  onPress,
+  showFavorite = false,
+  isFavorite = false,
+  onFavoriteChange,
+}) {
   const imageUrl = getProductImage(product);
   const { user } = useAuth();
   const { addItem } = useCart();
-  const canBuy = user?.role === 'BUYER';
+  const outOfStock = product?.isOutOfStock || Number(product?.stock ?? 0) <= 0 || product?.status === 'OUT_OF_STOCK';
+  const canBuy = user?.role === 'BUYER' && !outOfStock;
 
   const handleAddPress = () => {
     addItem(product, 1);
   };
 
   return (
-    <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={styles.card}>
-      <AppImage uri={imageUrl} style={styles.image} fallbackEmoji="🛒" />
+    <TouchableOpacity activeOpacity={0.88} onPress={onPress} style={[styles.card, outOfStock && styles.cardOutOfStock]}>
+      <View style={styles.imageWrap}>
+        <AppImage uri={imageUrl} style={styles.image} fallbackEmoji="🛒" />
+        {showFavorite ? (
+          <FavoriteButton
+            productId={product.id}
+            initialIsFavorite={isFavorite}
+            size={18}
+            style={styles.favoriteButton}
+            onChange={onFavoriteChange}
+          />
+        ) : null}
+        {outOfStock ? (
+          <>
+            <View style={styles.outOfStockBadge}>
+              <Text style={styles.outOfStockBadgeText}>Agotado</Text>
+            </View>
+            <View style={styles.outOfStockOverlay} />
+          </>
+        ) : null}
+      </View>
       <View style={styles.content}>
         <Text style={styles.storeName} numberOfLines={1}>{getStoreName(product)}</Text>
         <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
@@ -39,8 +66,13 @@ export default function ProductCard({ product, onPress }) {
             <Text style={styles.price}>{formatPrice(product.price)}</Text>
             <Text style={styles.unit}>/{product.unit ?? 'u'}</Text>
           </View>
-          {canBuy ? (
-            <TouchableOpacity activeOpacity={0.8} onPress={handleAddPress} style={styles.addButton}>
+          {user?.role === 'BUYER' ? (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              disabled={!canBuy}
+              onPress={handleAddPress}
+              style={[styles.addButton, !canBuy && styles.addButtonDisabled]}
+            >
               <Ionicons name="add" size={scale(20)} color={colors.surface} />
             </TouchableOpacity>
           ) : null}
@@ -59,9 +91,40 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     ...shadows.card,
   },
+  cardOutOfStock: {
+    opacity: 0.78,
+  },
+  imageWrap: {
+    position: 'relative',
+  },
   image: {
     width: '100%',
     height: scale(140),
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    zIndex: 3,
+  },
+  outOfStockBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+    zIndex: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: colors.error,
+  },
+  outOfStockBadgeText: {
+    ...typography.tiny,
+    color: colors.surface,
+    fontWeight: '800',
+  },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.48)',
   },
   content: {
     padding: scale(10),
@@ -99,5 +162,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
+  },
+  addButtonDisabled: {
+    backgroundColor: colors.textLight,
   },
 });

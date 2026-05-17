@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import StoreStatusBadge from '../stores/StoreStatusBadge';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { scale } from '../../utils/responsive';
 
@@ -13,6 +14,7 @@ export default function StoreCard({ store, onPress }) {
       </View>
       <View style={styles.content}>
         <Text style={styles.name} numberOfLines={2}>{store.name}</Text>
+        <StoreStatusBadge schedule={store.schedule ?? store.openingHours} compact />
         <Text style={styles.rating}>⭐ {Number(store.rating ?? store.averageRating ?? 0).toFixed(1)}</Text>
         <Text style={styles.city} numberOfLines={1}>{store.city ?? 'Guatemala'}</Text>
       </View>

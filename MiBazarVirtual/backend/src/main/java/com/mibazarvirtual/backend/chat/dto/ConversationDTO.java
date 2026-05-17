@@ -3,6 +3,7 @@ package com.mibazarvirtual.backend.chat.dto;
 
 import java.time.LocalDateTime;
 
+// Resumen que usa el frontend para pintar cada fila de la bandeja de conversaciones.
 public record ConversationDTO(
         Long id,
         Long buyerId,

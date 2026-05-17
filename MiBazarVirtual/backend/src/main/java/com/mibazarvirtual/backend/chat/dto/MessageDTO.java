@@ -3,6 +3,7 @@ package com.mibazarvirtual.backend.chat.dto;
 
 import java.time.LocalDateTime;
 
+// Forma segura y simple de exponer un mensaje al frontend, sin devolver la entidad completa.
 public record MessageDTO(
         Long conversationId,
         Long senderId,

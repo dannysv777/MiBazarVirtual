@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -17,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ordersApi from '../../api/ordersApi';
 import AppImage from '../../components/common/AppImage';
 import EmptyState from '../../components/common/EmptyState';
+import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import CategoryChip from '../../components/home/CategoryChip';
 import ProductCard from '../../components/home/ProductCard';
@@ -24,44 +25,46 @@ import SearchBar from '../../components/home/SearchBar';
 import StoreCard from '../../components/home/StoreCard';
 import { getCategories } from '../../api/categoriesApi';
 import { getProducts } from '../../api/productsApi';
+import * as recommendationsApi from '../../api/recommendationsApi';
 import { getStores } from '../../api/storesApi';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
-import { useChat } from '../../context/ChatContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { useToast } from '../../context/ToastContext';
 import { colors, spacing, typography } from '../../theme';
 import { formatPrice } from '../../utils/formatters';
 import { getFirstName, getGreeting } from '../../utils/greeting';
-import { analyzeOrderHistory, getRecommendedCategoryIds } from '../../utils/recommendations';
+import { analyzeOrderHistory } from '../../utils/recommendations';
 import { getErrorMessage, getList } from '../../utils/apiResponse';
 import { scale } from '../../utils/responsive';
+import { isStoreOpen } from '../../utils/storeSchedule';
 
 const allCategory = { id: 0, name: 'Todos', icon: '✨' };
+const LAST_SEEN_STORES_KEY = 'mibazarvirtual:last_seen_stores';
+const HOME_REFRESH_INTERVAL = 5 * 60 * 1000;
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated } = useAuth();
   const { addItem } = useCart();
-  const { unreadCount } = useChat();
+  const { unreadCount } = useNotifications();
   const { showSuccess } = useToast();
   const [greeting, setGreeting] = useState(getGreeting());
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [trendingProducts, setTrendingProducts] = useState([]);
   const [stores, setStores] = useState([]);
   const [frequentItems, setFrequentItems] = useState([]);
-  const [recommendedProducts, setRecommendedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [compactStatusBar, setCompactStatusBar] = useState(false);
+  const [sessionSeed] = useState(() => Math.random());
   const scrollY = useRef(new Animated.Value(0)).current;
+  const lastFetchTimeRef = useRef(0);
 
   const isBuyer = user?.role === 'BUYER';
   const firstName = getFirstName(user?.fullName) || user?.username || 'Invitado';
-
-  useFocusEffect(useCallback(() => {
-    setGreeting(getGreeting());
-  }, []));
 
   const loadHomeData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -72,10 +75,19 @@ export default function HomeScreen({ navigation }) {
     setError('');
 
     try {
-      const [categoriesResponse, productsResponse, storesResponse, ordersResult] = await Promise.allSettled([
+      const storedLastSeen = await AsyncStorage.getItem(LAST_SEEN_STORES_KEY);
+      const excludeStoreIds = storedLastSeen ? JSON.parse(storedLastSeen) : [];
+      const userId = isAuthenticated ? user?.id : null;
+
+      const featuredRequest = isBuyer && isAuthenticated
+        ? recommendationsApi.getForYou(10)
+        : recommendationsApi.getFeed(userId, 10, { seed: sessionSeed, excludeStoreIds });
+
+      const [categoriesResponse, productsResponse, storesResponse, trendingResponse, ordersResult] = await Promise.allSettled([
         getCategories(),
-        getProducts({ page: 0, size: 10 }),
-        getStores({ page: 0, size: 6 }),
+        featuredRequest,
+        recommendationsApi.getRecommendedStores(userId, 6, { seed: sessionSeed }),
+        recommendationsApi.getTrending(null, 8),
         isBuyer && isAuthenticated ? ordersApi.getOrderHistory() : Promise.resolve(null),
       ]);
 
@@ -83,46 +95,79 @@ export default function HomeScreen({ navigation }) {
         setCategories([allCategory, ...getList(categoriesResponse.value)]);
       }
 
-      if (productsResponse.status === 'fulfilled') {
-        setProducts(getList(productsResponse.value));
+      let nextProducts = productsResponse.status === 'fulfilled' ? getList(productsResponse.value) : [];
+      if (!nextProducts.length) {
+        try {
+          const fallbackProductsResponse = await getProducts({ page: 0, size: 10, sortBy: 'newest' });
+          nextProducts = getList(fallbackProductsResponse);
+        } catch (fallbackError) {
+          nextProducts = [];
+        }
       }
 
-      if (storesResponse.status === 'fulfilled') {
-        setStores(getList(storesResponse.value));
+      if (nextProducts.length) {
+        setProducts(nextProducts);
+        await AsyncStorage.setItem(
+          LAST_SEEN_STORES_KEY,
+          JSON.stringify([...new Set(nextProducts.map((product) => product.storeId).filter(Boolean))])
+        );
+      } else {
+        setProducts([]);
       }
+
+      let nextStores = storesResponse.status === 'fulfilled' ? getList(storesResponse.value) : [];
+      if (!nextStores.length) {
+        try {
+          const fallbackStoresResponse = await getStores({ page: 0, size: 6 });
+          nextStores = getList(fallbackStoresResponse);
+        } catch (fallbackError) {
+          nextStores = [];
+        }
+      }
+      setStores([...nextStores].sort((a, b) => {
+        const aOpen = isStoreOpen(a.schedule ?? a.openingHours).isOpen ? 1 : 0;
+        const bOpen = isStoreOpen(b.schedule ?? b.openingHours).isOpen ? 1 : 0;
+        return bOpen - aOpen;
+      }));
+
+      let nextTrendingProducts = trendingResponse.status === 'fulfilled' ? getList(trendingResponse.value) : [];
+      if (!nextTrendingProducts.length) {
+        nextTrendingProducts = nextProducts.slice(0, 8);
+      }
+      setTrendingProducts(nextTrendingProducts);
 
       if (ordersResult.status === 'fulfilled' && ordersResult.value) {
         const orders = getList(ordersResult.value);
         const frequent = analyzeOrderHistory(orders);
         setFrequentItems(frequent);
-
-        const categoryIds = getRecommendedCategoryIds(orders);
-        if (categoryIds.length) {
-          const recommendedResponse = await getProducts({ categoryId: categoryIds[0], page: 0, size: 6 });
-          const weeklyIds = new Set(frequent.map((item) => item.productId));
-          setRecommendedProducts(getList(recommendedResponse).filter((item) => !weeklyIds.has(item.id)));
-        } else {
-          setRecommendedProducts([]);
-        }
       } else {
         setFrequentItems([]);
-        setRecommendedProducts([]);
       }
 
       if (
         categoriesResponse.status === 'rejected'
         && productsResponse.status === 'rejected'
         && storesResponse.status === 'rejected'
+        && trendingResponse.status === 'rejected'
       ) {
         throw productsResponse.reason;
       }
+
+      lastFetchTimeRef.current = Date.now();
     } catch (homeError) {
       setError(getErrorMessage(homeError, 'No pudimos cargar el inicio.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isAuthenticated, isBuyer]);
+  }, [isAuthenticated, isBuyer, sessionSeed, user?.id]);
+
+  useFocusEffect(useCallback(() => {
+    setGreeting(getGreeting());
+    if (lastFetchTimeRef.current && Date.now() - lastFetchTimeRef.current > HOME_REFRESH_INTERVAL) {
+      loadHomeData(true);
+    }
+  }, [loadHomeData]));
 
   useEffect(() => {
     loadHomeData();
@@ -167,7 +212,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
-      <StatusBar style={compactStatusBar ? 'light' : 'dark'} backgroundColor="transparent" translucent />
+      <FocusAwareStatusBar style={compactStatusBar ? 'light' : 'dark'} backgroundColor="transparent" translucent />
       <Animated.ScrollView
         refreshControl={refreshControl}
         showsVerticalScrollIndicator={false}
@@ -237,6 +282,22 @@ export default function HomeScreen({ navigation }) {
           />
         )}
 
+        {trendingProducts.length >= 3 ? (
+          <>
+            <SectionHeader title="Tendencias esta semana" />
+            <FlatList
+              data={trendingProducts}
+              horizontal
+              keyExtractor={(item) => item.id.toString()}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+              renderItem={({ item }) => (
+                <ProductCard product={item} onPress={() => navigation.navigate('ProductDetail', { productId: item.id })} />
+              )}
+            />
+          </>
+        ) : null}
+
         {isBuyer ? (
           <WeeklySection
             loading={loading}
@@ -247,7 +308,7 @@ export default function HomeScreen({ navigation }) {
           />
         ) : null}
 
-        <SectionHeader title="Productos destacados" />
+        <SectionHeader title={isBuyer && isAuthenticated ? 'Recomendado para ti' : 'Destacados hoy'} subtitle="Rotacion justa entre tiendas y categorias" />
         {loading ? (
           <CardSkeletonRow />
         ) : products.length ? (
@@ -265,23 +326,7 @@ export default function HomeScreen({ navigation }) {
           <EmptyState emoji="🍽️" title="Sin productos" subtitle="Aún no hay productos destacados." />
         )}
 
-        {isBuyer && recommendedProducts.length ? (
-          <>
-            <SectionHeader title="Recomendado para ti ✨" subtitle="Basado en tus compras anteriores" />
-            <FlatList
-              data={recommendedProducts}
-              horizontal
-              keyExtractor={(item) => item.id.toString()}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-              renderItem={({ item }) => (
-                <ProductCard product={item} onPress={() => navigation.navigate('ProductDetail', { productId: item.id })} />
-              )}
-            />
-          </>
-        ) : null}
-
-        <SectionHeader title="Tiendas" />
+        <SectionHeader title="Tiendas para ti" />
         {loading ? (
           <StoreSkeletonRow />
         ) : stores.length ? (

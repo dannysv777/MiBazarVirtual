@@ -1,19 +1,17 @@
-import { StatusBar as RNStatusBar, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import { ChatProvider } from './src/context/ChatContext';
+import { NotificationProvider } from './src/context/NotificationContext';
 import { ToastProvider } from './src/context/ToastContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { colors } from './src/theme';
+import NetworkBanner from './src/components/common/NetworkBanner';
 
 export default function App() {
-  RNStatusBar.setTranslucent(true);
-  RNStatusBar.setBackgroundColor('transparent');
-
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
@@ -21,8 +19,10 @@ export default function App() {
           <AuthProvider>
             <CartProvider>
               <ChatProvider>
-                <StatusBar style="dark" backgroundColor="transparent" translucent />
-                <AppNavigator />
+                <NotificationProvider>
+                  <AppNavigator />
+                  <NetworkBanner />
+                </NotificationProvider>
               </ChatProvider>
             </CartProvider>
           </AuthProvider>
