@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,6 +34,7 @@ public class DeliveryController {
     private final AuthenticatedUserResolver authenticatedUserResolver;
 
     @GetMapping("/available")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<Page<DeliveryOrderDTO>>> available(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
@@ -45,6 +47,7 @@ public class DeliveryController {
     }
 
     @GetMapping("/mine")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<Page<DeliveryOrderDTO>>> mine(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
