@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, shadows, spacing, typography } from '../../theme';
@@ -28,6 +28,11 @@ export default function Toast({ toast, onDismiss, index = 0 }) {
     return () => clearTimeout(timerId);
   }, [onDismiss, opacity, toast.duration, toast.id, translateY]);
 
+  const handleAction = () => {
+    onDismiss(toast.id);
+    toast.onAction?.();
+  };
+
   return (
     <Animated.View
       style={[
@@ -42,7 +47,14 @@ export default function Toast({ toast, onDismiss, index = 0 }) {
     >
       <TouchableOpacity activeOpacity={0.9} onPress={() => onDismiss(toast.id)} style={styles.content}>
         <Ionicons name={palette.icon} size={22} color={palette.color} />
-        <Text style={styles.message} numberOfLines={2}>{toast.message}</Text>
+        <View style={styles.textWrap}>
+          <Text style={styles.message} numberOfLines={2}>{toast.message}</Text>
+          {toast.actionLabel && toast.onAction ? (
+            <TouchableOpacity activeOpacity={0.78} onPress={handleAction} style={styles.actionButton}>
+              <Text style={[styles.actionText, { color: palette.color }]}>{toast.actionLabel}</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -66,9 +78,19 @@ const styles = StyleSheet.create({
   },
   message: {
     ...typography.small,
-    flex: 1,
     color: colors.textPrimary,
     fontWeight: '700',
+  },
+  textWrap: {
+    flex: 1,
     marginLeft: spacing.sm,
+  },
+  actionButton: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  actionText: {
+    ...typography.tiny,
+    fontWeight: '900',
   },
 });

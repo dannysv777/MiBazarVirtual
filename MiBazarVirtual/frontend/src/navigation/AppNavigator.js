@@ -5,6 +5,7 @@ import { colors } from '../theme';
 import SplashScreen from '../screens/auth/SplashScreen';
 import AuthStack from './AuthStack';
 import MainTabs from './MainTabs';
+import { navigationRef } from './navigationService';
 
 const navigationTheme = {
   dark: false,
@@ -22,7 +23,7 @@ export default function AppNavigator() {
   const { isLoading, isAuthenticated } = useAuth();
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer ref={navigationRef} theme={navigationTheme}>
       {isLoading ? <SplashScreen /> : isAuthenticated ? <MainTabs /> : <AuthStack />}
     </NavigationContainer>
   );

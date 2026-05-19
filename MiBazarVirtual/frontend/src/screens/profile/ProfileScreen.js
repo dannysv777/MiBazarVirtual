@@ -66,6 +66,7 @@ export default function ProfileScreen({ navigation }) {
     try {
       const profileResponse = await profileApi.getProfile();
       const nextProfile = getPayload(profileResponse);
+      const nextRole = String(nextProfile?.role ?? '').trim().toUpperCase();
       setProfile(nextProfile);
       setEditForm({
         fullName: nextProfile?.fullName ?? '',
@@ -75,20 +76,24 @@ export default function ProfileScreen({ navigation }) {
 
       const requests = [profileApi.getAppInfo()];
 
-      if (nextProfile?.role === 'SELLER') {
+      if (nextRole === 'SELLER') {
         requests.push(profileApi.getSellerStats());
         requests.push(getMyStore());
-      } else if (nextProfile?.role === 'BUYER') {
+      } else if (nextRole === 'BUYER') {
         requests.push(profileApi.getBuyerStats());
+      } else if (nextRole === 'DELIVERY') {
+        requests.push(profileApi.getDeliveryStats());
       }
 
       const responses = await Promise.allSettled(requests);
       setAppInfo(responses[0].status === 'fulfilled' ? getPayload(responses[0].value) : null);
 
-      if (nextProfile?.role === 'SELLER') {
+      if (nextRole === 'SELLER') {
         setStats(responses[1]?.status === 'fulfilled' ? getPayload(responses[1].value) : null);
         setMyStore(responses[2]?.status === 'fulfilled' ? getPayload(responses[2].value) : null);
-      } else if (nextProfile?.role === 'BUYER') {
+      } else if (nextRole === 'BUYER') {
+        setStats(responses[1]?.status === 'fulfilled' ? getPayload(responses[1].value) : null);
+      } else if (nextRole === 'DELIVERY') {
         setStats(responses[1]?.status === 'fulfilled' ? getPayload(responses[1].value) : null);
       }
     } catch (profileError) {
@@ -318,6 +323,16 @@ export default function ProfileScreen({ navigation }) {
                 <StatCard icon="🛍️" value={stats?.activeProducts ?? 0} label="Productos" />
                 <StatCard icon="⭐" value={Number(stats?.averageRating ?? 0).toFixed(1)} label="Rating" />
               </>
+            ) : role === 'DELIVERY' ? (
+              <>
+                <StatCard icon="📦" value={stats?.totalOrders ?? 0} label="Asignados" />
+                <StatCard icon="✅" value={stats?.deliveredOrders ?? 0} label="Entregados" />
+                <StatCard
+                  icon="💰"
+                  value={formatPrice(stats?.totalCollected ?? 0).replace('.00', '')}
+                  label="Cobrado"
+                />
+              </>
             ) : (
               <>
                 <StatCard icon="📦" value={stats?.totalOrders ?? 0} label="Pedidos" />
@@ -325,7 +340,7 @@ export default function ProfileScreen({ navigation }) {
                 <StatCard
                   icon="💰"
                   value={formatPrice(stats?.totalSpent ?? 0).replace('.00', '')}
-                  label={role === 'DELIVERY' ? 'Cobrado' : 'Gastado'}
+                  label="Gastado"
                 />
               </>
             )}

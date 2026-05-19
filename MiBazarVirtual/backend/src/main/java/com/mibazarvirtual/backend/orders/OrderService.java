@@ -155,6 +155,19 @@ public class OrderService {
         ));
     }
 
+    @Transactional(readOnly = true)
+    public OrderResponse getSellerOrder(Long sellerId, Long orderId) {
+        Store store = storeRepository.findByUserId(sellerId)
+                .orElseThrow(() -> new StoreNotFoundException(sellerId));
+        List<OrderItem> sellerItems = orderItemRepository.findByOrderIdAndStoreIdOrderByIdAsc(orderId, store.getId());
+        if (sellerItems.isEmpty()) {
+            throw new OrderNotFoundException(orderId);
+        }
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        return OrderResponse.from(order, sellerItems);
+    }
+
     @Transactional
     public OrderResponse confirmItem(Long orderId, Long itemId, Long sellerId, boolean available, String note) {
         Store sellerStore = storeRepository.findByUserId(sellerId)

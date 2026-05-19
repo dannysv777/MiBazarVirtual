@@ -17,7 +17,7 @@ import EmptyState from '../../components/common/EmptyState';
 import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OrderCard from '../../components/orders/OrderCard';
-import { colors, shadows, spacing, typography } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 import { getErrorMessage, getList } from '../../utils/apiResponse';
 import { scale } from '../../utils/responsive';
 
@@ -25,6 +25,7 @@ const statusFilters = [
   { key: 'ALL', label: 'Todos', emptyTitle: 'Aun no tienes pedidos recibidos' },
   { key: 'PENDING', label: 'Pendientes', emptyTitle: 'No tienes pedidos pendientes' },
   { key: 'CONFIRMED', label: 'Confirmados', emptyTitle: 'No tienes pedidos confirmados' },
+  { key: 'DELIVERED', label: 'Entregados', emptyTitle: 'No tienes pedidos entregados al delivery' },
 ];
 
 const statCards = [
@@ -40,15 +41,24 @@ const statCards = [
     key: 'CONFIRMED',
     statKey: 'confirmed',
     label: 'Confirmados',
-    hint: 'Para delivery',
+    hint: 'Listos para retirar',
     icon: 'checkmark-done-outline',
     style: 'confirmed',
+  },
+  {
+    key: 'DELIVERED',
+    statKey: 'delivered',
+    label: 'Entregados',
+    hint: 'Ya retirados',
+    icon: 'bicycle-outline',
+    style: 'delivered',
   },
 ];
 
 const initialStats = {
   pending: 0,
   confirmed: 0,
+  delivered: 0,
 };
 
 const emptyByStatus = statusFilters.reduce((acc, item) => ({ ...acc, [item.key]: item.emptyTitle }), {});
@@ -62,6 +72,10 @@ export default function SellerOrdersScreen({ navigation }) {
   const [error, setError] = useState('');
 
   const getSellerStage = (order) => {
+    if (order.status === 'IN_PROGRESS' || order.status === 'DELIVERED') {
+      return 'DELIVERED';
+    }
+
     const items = order.items ?? [];
     const hasPendingItems = items.some((item) => (item.itemStatus ?? 'PENDING') === 'PENDING');
     return hasPendingItems ? 'PENDING' : 'CONFIRMED';
@@ -71,6 +85,7 @@ export default function SellerOrdersScreen({ navigation }) {
     const stage = getSellerStage(order);
     if (stage === 'PENDING') acc.pending += 1;
     if (stage === 'CONFIRMED') acc.confirmed += 1;
+    if (stage === 'DELIVERED') acc.delivered += 1;
     return acc;
   }, { ...initialStats });
 
@@ -223,18 +238,18 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   statCard: {
-    width: scale(154),
-    minHeight: scale(104),
-    padding: spacing.md,
-    borderRadius: scale(16),
+    width: scale(148),
+    height: scale(112),
+    padding: spacing.sm,
+    borderRadius: scale(14),
     marginRight: spacing.sm,
     borderWidth: 1,
     borderColor: 'transparent',
-    ...shadows.card,
+    overflow: 'hidden',
   },
   statCardActive: {
     borderColor: colors.primary,
-    backgroundColor: colors.surface,
+    borderWidth: 2,
   },
   pendingStat: {
     backgroundColor: '#FFF6E8',
@@ -242,14 +257,17 @@ const styles = StyleSheet.create({
   confirmedStat: {
     backgroundColor: '#EAF8EF',
   },
+  deliveredStat: {
+    backgroundColor: '#EAF3FF',
+  },
   statTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   statIcon: {
-    width: scale(34),
-    height: scale(34),
+    width: scale(32),
+    height: scale(32),
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: scale(17),
@@ -258,6 +276,7 @@ const styles = StyleSheet.create({
   statCount: {
     ...typography.h3,
     color: colors.primary,
+    maxWidth: scale(72),
   },
   statLabel: {
     ...typography.bodyBold,

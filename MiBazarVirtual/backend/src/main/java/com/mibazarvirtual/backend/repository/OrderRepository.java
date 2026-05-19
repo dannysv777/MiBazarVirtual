@@ -31,6 +31,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             Pageable pageable
     );
 
+    @Query(value = """
+            SELECT
+                COUNT(*) AS totalOrders,
+                COALESCE(SUM(CASE WHEN status = 'DELIVERED' THEN 1 ELSE 0 END), 0) AS deliveredOrders,
+                COALESCE(SUM(CASE WHEN status IN ('READY_FOR_PICKUP', 'IN_PROGRESS') THEN 1 ELSE 0 END), 0) AS activeOrders,
+                COALESCE(SUM(CASE WHEN status = 'DELIVERED' THEN total ELSE 0 END), 0) AS totalCollected
+            FROM orders
+            WHERE delivery_worker_id = :deliveryWorkerId
+            """, nativeQuery = true)
+    DeliveryStatsProjection getDeliveryStats(@Param("deliveryWorkerId") Long deliveryWorkerId);
+
     @Query("""
             select distinct oi.order
             from OrderItem oi
@@ -121,6 +132,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         long getCancelledOrders();
 
         java.math.BigDecimal getTotalSpent();
+    }
+
+    interface DeliveryStatsProjection {
+        long getTotalOrders();
+
+        long getDeliveredOrders();
+
+        long getActiveOrders();
+
+        java.math.BigDecimal getTotalCollected();
     }
 
     interface AdminOrderStatsProjection {

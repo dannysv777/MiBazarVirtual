@@ -21,6 +21,8 @@ export const getSellerOrders = (params = { page: 0, size: 20 }) => (
   axiosInstance.get('/api/seller/orders', { params })
 );
 
+export const getSellerOrder = (id) => axiosInstance.get(`/api/seller/orders/${id}`);
+
 export const updateOrderStatus = (id, status) => (
   axiosInstance.patch(`/api/seller/orders/${id}/status`, { status })
 );

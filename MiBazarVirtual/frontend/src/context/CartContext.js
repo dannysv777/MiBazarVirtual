@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
+import { navigateToCart } from '../navigation/navigationService';
 
 export const CartContext = createContext(null);
 
@@ -113,7 +114,10 @@ export function CartProvider({ children }) {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     if (!options.silent) {
-      showSuccess('Agregado al carrito');
+      showSuccess('Agregado al carrito', 4500, {
+        actionLabel: 'Ver carrito',
+        onAction: navigateToCart,
+      });
     }
   }, [items, persist, showSuccess]);
 
@@ -139,7 +143,10 @@ export function CartProvider({ children }) {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     if (!options.silent) {
-      showSuccess('Productos agregados al carrito');
+      showSuccess('Productos agregados al carrito', 4500, {
+        actionLabel: 'Ver carrito',
+        onAction: navigateToCart,
+      });
     }
   }, [items, persist, showSuccess]);
 

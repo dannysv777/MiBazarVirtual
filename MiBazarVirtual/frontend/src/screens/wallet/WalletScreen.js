@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as walletApi from '../../api/walletApi';
+import * as profileApi from '../../api/profileApi';
 import AppBadge from '../../components/common/AppBadge';
 import AppButton from '../../components/common/AppButton';
 import AppInput from '../../components/common/AppInput';
@@ -23,6 +24,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { getErrorMessage, getList, getPayload } from '../../utils/apiResponse';
+import { formatPrice } from '../../utils/formatters';
 import { scale } from '../../utils/responsive';
 
 const brands = ['Visa', 'Mastercard', 'Otro'];
@@ -34,9 +36,10 @@ const accountTypes = [
 export default function WalletScreen({ navigation }) {
   const { user } = useAuth();
   const { showError, showSuccess } = useToast();
-  const isSeller = user?.role === 'SELLER';
+  const isSeller = String(user?.role ?? '').trim().toUpperCase() === 'SELLER';
   const [cards, setCards] = useState([]);
   const [bankAccount, setBankAccount] = useState(null);
+  const [sellerStats, setSellerStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cardModalVisible, setCardModalVisible] = useState(false);
@@ -60,9 +63,13 @@ export default function WalletScreen({ navigation }) {
 
     try {
       if (isSeller) {
-        const response = await walletApi.getBankAccount();
-        const account = getPayload(response);
+        const [accountResponse, statsResponse] = await Promise.allSettled([
+          walletApi.getBankAccount(),
+          profileApi.getSellerStats(),
+        ]);
+        const account = accountResponse.status === 'fulfilled' ? getPayload(accountResponse.value) : null;
         setBankAccount(account);
+        setSellerStats(statsResponse.status === 'fulfilled' ? getPayload(statsResponse.value) : null);
         setEditingBank(!account);
         if (account) {
           setBankForm({
@@ -199,6 +206,7 @@ export default function WalletScreen({ navigation }) {
             saving={saving}
             setBankForm={setBankForm}
             setEditingBank={setEditingBank}
+            sellerStats={sellerStats}
             onSave={handleSaveBankAccount}
           />
         ) : (
@@ -264,7 +272,11 @@ function BuyerWallet({ cards, onAddCard, onCardLongPress }) {
   );
 }
 
-function SellerWallet({ bankAccount, bankForm, editingBank, saving, setBankForm, setEditingBank, onSave }) {
+function SellerWallet({ bankAccount, bankForm, editingBank, saving, setBankForm, setEditingBank, sellerStats, onSave }) {
+  const revenue = Number(sellerStats?.totalRevenue ?? 0);
+  const platformFee = revenue * 0.03;
+  const estimatedPayout = Math.max(revenue - platformFee, 0);
+
   return (
     <>
       {!bankAccount && !editingBank ? (
@@ -334,11 +346,24 @@ function SellerWallet({ bankAccount, bankForm, editingBank, saving, setBankForm,
 
       <View style={styles.earningsCard}>
         <Text style={styles.earningsTitle}>Tus ganancias</Text>
-        <Text style={styles.earningsBody}>Se calcularan y depositaran semanalmente.</Text>
-        <Text style={styles.earningsBody}>MiBazarVirtual retiene el 3% de comision por servicio.</Text>
-        <Text style={styles.reportLink}>Ver mis reportes</Text>
+        <View style={styles.reportGrid}>
+          <ReportMetric label="Pedidos entregados" value={sellerStats?.deliveredOrders ?? 0} />
+          <ReportMetric label="Ventas cobradas" value={formatPrice(revenue)} />
+          <ReportMetric label="Comision 3%" value={formatPrice(platformFee)} />
+          <ReportMetric label="Pago estimado" value={formatPrice(estimatedPayout)} highlight />
+        </View>
+        <Text style={styles.earningsBody}>Estos reportes son visuales para la demo. El deposito semanal se conectara al modulo de pagos.</Text>
       </View>
     </>
+  );
+}
+
+function ReportMetric({ label, value, highlight = false }) {
+  return (
+    <View style={[styles.reportMetric, highlight && styles.reportMetricHighlight]}>
+      <Text style={[styles.reportValue, highlight && styles.reportValueHighlight]}>{value}</Text>
+      <Text style={[styles.reportLabel, highlight && styles.reportLabelHighlight]}>{label}</Text>
+    </View>
   );
 }
 
@@ -608,11 +633,38 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  reportLink: {
-    ...typography.small,
-    color: colors.primary,
-    fontWeight: '800',
+  reportGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
     marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  reportMetric: {
+    width: '47%',
+    minHeight: scale(76),
+    justifyContent: 'center',
+    padding: spacing.sm,
+    borderRadius: scale(12),
+    backgroundColor: colors.background,
+  },
+  reportMetricHighlight: {
+    backgroundColor: colors.primary,
+  },
+  reportValue: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+  },
+  reportValueHighlight: {
+    color: colors.surface,
+  },
+  reportLabel: {
+    ...typography.tiny,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  reportLabelHighlight: {
+    color: colors.surface,
   },
   modalOverlay: {
     flex: 1,

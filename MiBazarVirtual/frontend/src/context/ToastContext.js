@@ -12,16 +12,16 @@ export function ToastProvider({ children }) {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
-  const showToast = useCallback(({ message, variant = 'info', duration = 3000 }) => {
+  const showToast = useCallback(({ message, variant = 'info', duration = 3000, actionLabel, onAction }) => {
     const id = `${Date.now()}-${Math.random()}`;
-    setToasts((current) => [...current, { id, message, variant, duration }]);
+    setToasts((current) => [...current, { id, message, variant, duration, actionLabel, onAction }]);
     return id;
   }, []);
 
   const value = useMemo(() => ({
     showToast,
     hideToast,
-    showSuccess: (message, duration) => showToast({ message, variant: 'success', duration }),
+    showSuccess: (message, duration, options = {}) => showToast({ message, variant: 'success', duration, ...options }),
     showError: (message, duration) => showToast({ message, variant: 'error', duration }),
     showWarning: (message, duration) => showToast({ message, variant: 'warning', duration }),
     showInfo: (message, duration) => showToast({ message, variant: 'info', duration }),

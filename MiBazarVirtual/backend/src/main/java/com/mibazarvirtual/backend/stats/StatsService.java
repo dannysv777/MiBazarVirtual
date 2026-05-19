@@ -8,6 +8,7 @@ import com.mibazarvirtual.backend.repository.OrderRepository;
 import com.mibazarvirtual.backend.repository.ProductRepository;
 import com.mibazarvirtual.backend.repository.StoreRepository;
 import com.mibazarvirtual.backend.stats.dto.BuyerStatsResponse;
+import com.mibazarvirtual.backend.stats.dto.DeliveryStatsResponse;
 import com.mibazarvirtual.backend.stats.dto.SellerStatsResponse;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +56,17 @@ public class StatsService {
                 orderStats.getCancelledOrders(),
                 orderStats.getTotalSpent() == null ? BigDecimal.ZERO : orderStats.getTotalSpent(),
                 conversationRepository.countByBuyerIdOrSellerId(buyerId, buyerId)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public DeliveryStatsResponse getDeliveryStats(Long deliveryWorkerId) {
+        OrderRepository.DeliveryStatsProjection orderStats = orderRepository.getDeliveryStats(deliveryWorkerId);
+        return new DeliveryStatsResponse(
+                orderStats.getTotalOrders(),
+                orderStats.getActiveOrders(),
+                orderStats.getDeliveredOrders(),
+                orderStats.getTotalCollected() == null ? BigDecimal.ZERO : orderStats.getTotalCollected()
         );
     }
 }

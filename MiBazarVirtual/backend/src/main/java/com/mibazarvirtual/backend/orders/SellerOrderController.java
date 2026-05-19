@@ -43,6 +43,15 @@ public class SellerOrderController {
         return ResponseEntity.ok(ApiResponse.ok(orderService.getSellerOrders(sellerId, status, pageable), "Seller orders"));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<OrderResponse>> detail(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        Long sellerId = authenticatedUserResolver.currentUserId(authentication);
+        return ResponseEntity.ok(ApiResponse.ok(orderService.getSellerOrder(sellerId, id), "Seller order detail"));
+    }
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<OrderResponse>> updateStatus(
             @PathVariable Long id,

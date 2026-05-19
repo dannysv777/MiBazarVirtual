@@ -59,7 +59,9 @@ export default function OrderDetailScreen({ navigation, route }) {
     setError('');
 
     try {
-      const response = await ordersApi.getOrder(orderId);
+      const response = isSeller
+        ? await ordersApi.getSellerOrder(orderId)
+        : await ordersApi.getOrder(orderId);
       setOrder(getPayload(response));
     } catch (detailError) {
       setError(getErrorMessage(detailError, 'No pudimos cargar el pedido.'));

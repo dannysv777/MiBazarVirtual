@@ -118,13 +118,11 @@ export default function MainTabs() {
           component={isSeller ? SellerOrdersStack : OrdersStack}
         />
       )}
-      {!isDelivery ? (
-        <Tab.Screen
-          name="Mensajes"
-          component={ChatStack}
-          options={{ tabBarBadge: unreadCount > 0 ? unreadCount : undefined }}
-        />
-      ) : null}
+      <Tab.Screen
+        name="Mensajes"
+        component={ChatStack}
+        options={{ tabBarBadge: unreadCount > 0 ? unreadCount : undefined }}
+      />
       <Tab.Screen
         name="Perfil"
         component={ProfileStack}
