@@ -40,7 +40,7 @@ public class DeliveryController {
         Pageable pageable = PageRequest.of(page, size);
         Page<DeliveryOrderDTO> orders = orderRepository
                 .findByStatusOrderByCreatedAtDesc(Order.Status.CONFIRMED, pageable)
-                .map(order -> DeliveryOrderDTO.from(order, orderItemRepository.findByOrderIdOrderByIdAsc(order.getId())));
+                .map(order -> DeliveryOrderDTO.from(order, orderItemRepository.findDeliveryItemsByOrderId(order.getId())));
         return ResponseEntity.ok(ApiResponse.ok(orders, "Available delivery orders"));
     }
 
@@ -58,7 +58,7 @@ public class DeliveryController {
                         List.of(Order.Status.READY_FOR_PICKUP, Order.Status.IN_PROGRESS),
                         pageable
                 )
-                .map(order -> DeliveryOrderDTO.from(order, orderItemRepository.findByOrderIdOrderByIdAsc(order.getId())));
+                .map(order -> DeliveryOrderDTO.from(order, orderItemRepository.findDeliveryItemsByOrderId(order.getId())));
         return ResponseEntity.ok(ApiResponse.ok(orders, "My delivery orders"));
     }
 

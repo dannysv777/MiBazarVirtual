@@ -24,6 +24,7 @@ public record DeliveryOrderDTO(
     public static DeliveryOrderDTO from(Order order, List<OrderItem> items) {
         Map<Store, List<OrderItem>> itemsByStore = items.stream()
                 .filter(item -> item.getItemStatus() == OrderItem.ItemStatus.CONFIRMED)
+                .filter(item -> item.getStore() != null)
                 .collect(Collectors.groupingBy(OrderItem::getStore, LinkedHashMap::new, Collectors.toList()));
 
         return new DeliveryOrderDTO(
