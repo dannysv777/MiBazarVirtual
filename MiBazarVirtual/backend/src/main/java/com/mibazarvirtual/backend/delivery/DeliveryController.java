@@ -6,9 +6,12 @@ import com.mibazarvirtual.backend.orders.OrderService;
 import com.mibazarvirtual.backend.repository.OrderItemRepository;
 import com.mibazarvirtual.backend.repository.OrderRepository;
 import com.mibazarvirtual.backend.security.AuthenticatedUserResolver;
+import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/delivery/orders")
 @RequiredArgsConstructor
+@Slf4j
 @PreAuthorize("hasRole('DELIVERY')")
 public class DeliveryController {
 
@@ -40,9 +44,10 @@ public class DeliveryController {
             @RequestParam(defaultValue = "20") int size
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<DeliveryOrderDTO> orders = orderRepository
-                .findByStatusOrderByCreatedAtDesc(Order.Status.CONFIRMED, pageable)
-                .map(order -> DeliveryOrderDTO.from(order, orderItemRepository.findDeliveryItemsByOrderId(order.getId())));
+        Page<DeliveryOrderDTO> orders = safeDeliveryPage(
+                orderRepository.findByStatusOrderByCreatedAtDesc(Order.Status.CONFIRMED, pageable),
+                pageable
+        );
         return ResponseEntity.ok(ApiResponse.ok(orders, "Available delivery orders"));
     }
 
@@ -55,13 +60,14 @@ public class DeliveryController {
     ) {
         Long deliveryWorkerId = authenticatedUserResolver.currentUserId(authentication);
         Pageable pageable = PageRequest.of(page, size);
-        Page<DeliveryOrderDTO> orders = orderRepository
-                .findByDeliveryWorkerIdAndStatusInOrderByCreatedAtDesc(
+        Page<DeliveryOrderDTO> orders = safeDeliveryPage(
+                orderRepository.findByDeliveryWorkerIdAndStatusInOrderByCreatedAtDesc(
                         deliveryWorkerId,
                         List.of(Order.Status.READY_FOR_PICKUP, Order.Status.IN_PROGRESS),
                         pageable
-                )
-                .map(order -> DeliveryOrderDTO.from(order, orderItemRepository.findDeliveryItemsByOrderId(order.getId())));
+                ),
+                pageable
+        );
         return ResponseEntity.ok(ApiResponse.ok(orders, "My delivery orders"));
     }
 
@@ -81,5 +87,17 @@ public class DeliveryController {
     public ResponseEntity<ApiResponse<?>> deliver(@PathVariable Long orderId, Authentication authentication) {
         Long deliveryWorkerId = authenticatedUserResolver.currentUserId(authentication);
         return ResponseEntity.ok(ApiResponse.ok(orderService.markDelivered(orderId, deliveryWorkerId), "Order delivered"));
+    }
+
+    private Page<DeliveryOrderDTO> safeDeliveryPage(Page<Order> orders, Pageable pageable) {
+        List<DeliveryOrderDTO> deliveryOrders = new ArrayList<>();
+        for (Order order : orders.getContent()) {
+            try {
+                deliveryOrders.add(DeliveryOrderDTO.from(order, orderItemRepository.findDeliveryItemsByOrderId(order.getId())));
+            } catch (RuntimeException exception) {
+                log.warn("Skipping delivery order {} because it could not be mapped", order.getId(), exception);
+            }
+        }
+        return new PageImpl<>(deliveryOrders, pageable, orders.getTotalElements());
     }
 }
