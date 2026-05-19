@@ -91,6 +91,18 @@ export default function NotificationsScreen({ navigation }) {
     }
   };
 
+  const navigateToTab = (tabName, screenName, params) => {
+    const parentNavigation = navigation.getParent?.();
+    const target = screenName ? { screen: screenName, params } : undefined;
+
+    if (parentNavigation) {
+      parentNavigation.navigate(tabName, target);
+      return;
+    }
+
+    navigation.navigate(tabName, target);
+  };
+
   const navigateFromNotification = async (notification) => {
     try {
       if (!notification.isRead) {
@@ -106,21 +118,15 @@ export default function NotificationsScreen({ navigation }) {
 
     const data = notification.data ?? {};
     if (notification.type?.startsWith('ORDER') || notification.type === 'NEW_ORDER_RECEIVED') {
-      navigation.navigate('Pedidos', {
-        screen: 'OrderDetail',
-        params: {
-          orderId: data.orderId,
-          isSeller: user?.role === 'SELLER' || notification.type === 'NEW_ORDER_RECEIVED',
-        },
+      navigateToTab('Pedidos', 'OrderDetail', {
+        orderId: data.orderId,
+        isSeller: user?.role === 'SELLER' || notification.type === 'NEW_ORDER_RECEIVED',
       });
       return;
     }
 
     if (notification.type === 'NEW_MESSAGE') {
-      navigation.navigate('Mensajes', {
-        screen: 'Chat',
-        params: { conversationId: data.conversationId },
-      });
+      navigateToTab('Mensajes', 'Chat', { conversationId: data.conversationId });
       return;
     }
 

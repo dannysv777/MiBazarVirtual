@@ -169,6 +169,18 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  const navigateToTab = (tabName, screenName, params) => {
+    const parentNavigation = navigation.getParent?.();
+    const target = screenName ? { screen: screenName, params } : undefined;
+
+    if (parentNavigation) {
+      parentNavigation.navigate(tabName, target);
+      return;
+    }
+
+    navigation.navigate(tabName, target);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -180,7 +192,7 @@ export default function ProfileScreen({ navigation }) {
     );
   }
 
-  const role = profile?.role ?? 'BUYER';
+  const role = String(profile?.role ?? 'BUYER').trim().toUpperCase();
   const displayName = profile?.fullName || profile?.username || 'Usuario';
   const headerContentOpacity = scrollY.interpolate({
     inputRange: [0, 54, 96],
@@ -323,7 +335,7 @@ export default function ProfileScreen({ navigation }) {
             <MenuSection title="Mi cuenta" />
             {role === 'BUYER' ? (
               <>
-                <MenuRow icon="receipt-outline" label="Mis pedidos" onPress={() => navigation.navigate('Pedidos')} />
+                <MenuRow icon="receipt-outline" label="Mis pedidos" onPress={() => navigateToTab('Pedidos', 'Orders')} />
                 <MenuRow
                   icon="heart-outline"
                   label="Mis favoritos"
@@ -339,7 +351,7 @@ export default function ProfileScreen({ navigation }) {
               </>
             ) : null}
             {role !== 'DELIVERY' ? (
-              <MenuRow icon="chatbubble-outline" label="Mis conversaciones" onPress={() => navigation.navigate('Mensajes')} />
+              <MenuRow icon="chatbubble-outline" label="Mis conversaciones" onPress={() => navigateToTab('Mensajes', 'Conversations')} />
             ) : null}
 
             {role === 'SELLER' ? (
