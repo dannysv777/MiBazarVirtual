@@ -53,6 +53,7 @@ export default function ChatScreen({ navigation, route }) {
     buyerId,
     productContext,
     conversationType,
+    otherProfileImage,
     returnToConversations,
   } = route.params;
   const { user } = useAuth();
@@ -332,7 +333,11 @@ export default function ChatScreen({ navigation, route }) {
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.78} onPress={handleParticipantPress} style={styles.avatar}>
-            <Text style={styles.avatarText}>{otherUsername?.charAt(0)?.toUpperCase() ?? 'T'}</Text>
+            <AppImage
+              uri={otherProfileImage}
+              style={styles.avatarImage}
+              fallbackEmoji={otherUsername?.charAt(0)?.toUpperCase() ?? 'T'}
+            />
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.78} onPress={handleParticipantPress} style={styles.headerText}>
             <Text style={styles.otherName} numberOfLines={1}>{otherUsername}</Text>
@@ -489,6 +494,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: colors.accent,
     marginLeft: spacing.xs,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   avatarText: {
     ...typography.bodyBold,

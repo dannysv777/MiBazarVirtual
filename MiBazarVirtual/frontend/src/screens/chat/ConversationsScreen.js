@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as chatApi from '../../api/chatApi';
+import AppImage from '../../components/common/AppImage';
 import EmptyState from '../../components/common/EmptyState';
 import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
@@ -129,12 +130,15 @@ export default function ConversationsScreen({ navigation }) {
           buyerId: item.buyerId,
           conversationType: item.conversationType,
           orderId: item.orderId,
+          otherProfileImage: item.otherParticipantProfileImage,
           returnToConversations: true,
         })}
       >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{otherUsername.charAt(0).toUpperCase()}</Text>
-        </View>
+        <AppImage
+          uri={item.otherParticipantProfileImage}
+          style={styles.avatar}
+          fallbackEmoji={otherUsername.charAt(0).toUpperCase()}
+        />
         <View style={styles.conversationBody}>
           <View style={styles.conversationTop}>
             <Text style={styles.otherName} numberOfLines={1}>{otherUsername}</Text>

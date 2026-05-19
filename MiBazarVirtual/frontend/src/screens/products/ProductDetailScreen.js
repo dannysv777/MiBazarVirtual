@@ -175,6 +175,9 @@ export default function ProductDetailScreen({ navigation, route }) {
           otherUsername: store?.name ?? existingConversation.otherParticipantUsername ?? 'Tienda',
           productId: existingConversation.productId ?? product.id,
           storeId: store?.id,
+          conversationType: existingConversation.conversationType,
+          otherProfileImage: existingConversation.otherParticipantProfileImage,
+          orderId: existingConversation.orderId,
           productContext: {
             id: product.id,
             name: product.name,
@@ -199,6 +202,9 @@ export default function ProductDetailScreen({ navigation, route }) {
         otherUsername: store?.name ?? conversation.otherParticipantUsername ?? 'Tienda',
         productId: product.id,
         storeId: store?.id,
+        conversationType: conversation.conversationType,
+        otherProfileImage: conversation.otherParticipantProfileImage,
+        orderId: conversation.orderId,
         productContext: {
           id: product.id,
           name: product.name,
@@ -217,12 +223,16 @@ export default function ProductDetailScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+      <FocusAwareStatusBar style="light" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.imageWrap}>
           <AppImage uri={imageUrl} style={styles.image} fallbackEmoji="🍽️" />
-          <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => navigation.goBack()}
+            style={[styles.backButton, { top: insets.top + spacing.sm }]}
+          >
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           {user?.role === 'BUYER' ? (
@@ -230,7 +240,7 @@ export default function ProductDetailScreen({ navigation, route }) {
               productId={product.id}
               initialIsFavorite={initialIsFavorite}
               size={24}
-              style={styles.favoriteButton}
+              style={[styles.favoriteButton, { top: insets.top + spacing.sm }]}
               onChange={setInitialIsFavorite}
             />
           ) : null}
@@ -374,7 +384,7 @@ const styles = StyleSheet.create({
     paddingBottom: 112,
   },
   imageWrap: {
-    height: hp(35),
+    height: Math.max(hp(36), 280),
     position: 'relative',
     backgroundColor: colors.background,
   },
@@ -393,7 +403,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: spacing.md,
     left: spacing.md,
     width: scale(36),
     height: scale(36),
@@ -406,13 +415,12 @@ const styles = StyleSheet.create({
   },
   favoriteButton: {
     position: 'absolute',
-    top: spacing.md,
     right: spacing.md,
     zIndex: 4,
     elevation: 4,
   },
   contentCard: {
-    marginTop: -24,
+    marginTop: -18,
     padding: spacing.md,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

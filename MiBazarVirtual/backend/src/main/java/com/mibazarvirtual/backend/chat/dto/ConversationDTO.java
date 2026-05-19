@@ -15,6 +15,7 @@ public record ConversationDTO(
         String lastMessage,
         LocalDateTime lastMessageTime,
         int unreadCount,
-        String otherParticipantUsername
+        String otherParticipantUsername,
+        String otherParticipantProfileImage
 ) {
 }

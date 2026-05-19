@@ -189,7 +189,8 @@ public class ChatService {
                 lastMessage == null ? null : lastMessage.getContent(),
                 lastMessage == null ? null : lastMessage.getCreatedAt(),
                 messageRepository.countByConversationIdAndReadFalseAndSenderIdNot(conversation.getId(), currentUserId),
-                otherParticipant.getUsername()
+                otherParticipant.getUsername(),
+                otherParticipant.getProfileImage()
         );
     }
 

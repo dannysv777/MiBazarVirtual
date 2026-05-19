@@ -232,6 +232,10 @@ export default function ProfileScreen({ navigation }) {
           )}
         >
           <View style={[styles.profileHeader, { paddingTop: insets.top + spacing.xl }]}>
+            {myStore?.bannerUrl ? (
+              <AppImage uri={myStore.bannerUrl} style={styles.profileBannerImage} fallbackEmoji="🏪" />
+            ) : null}
+            {myStore?.bannerUrl ? <View style={styles.profileBannerOverlay} /> : null}
             <Animated.View style={[styles.profileHeaderContent, { opacity: headerContentOpacity }]}>
             <TouchableOpacity
               activeOpacity={0.82}
@@ -486,6 +490,14 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
     backgroundColor: colors.secondary,
+    overflow: 'hidden',
+  },
+  profileBannerImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  profileBannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.38)',
   },
   profileHeaderContent: {
     alignItems: 'center',

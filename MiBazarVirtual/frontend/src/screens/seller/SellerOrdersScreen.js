@@ -130,7 +130,12 @@ export default function SellerOrdersScreen({ navigation }) {
         <Text style={styles.subtitle}>Acepta productos y prepara pedidos para el repartidor</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.statsScroll}
+        contentContainerStyle={styles.statsRow}
+      >
         {statCards.map((card) => (
           <TouchableOpacity
             key={card.key}
@@ -235,7 +240,11 @@ const styles = StyleSheet.create({
   statsRow: {
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  statsScroll: {
+    flexGrow: 0,
+    maxHeight: scale(124),
   },
   statCard: {
     width: scale(148),
@@ -323,13 +332,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   listContent: {
-    paddingTop: spacing.sm,
+    paddingTop: 0,
     paddingBottom: 86,
   },
   emptyContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: spacing.md,
+    paddingTop: spacing.lg,
   },
   errorCard: {
     flexDirection: 'row',

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -45,50 +46,56 @@ export default function LoginScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
       >
-      <View style={styles.topSection}>
-        <Text style={styles.logo}>🛒</Text>
-        <Text style={styles.brand}>MiBazarVirtual</Text>
-        <Text style={styles.tagline}>Tu mercado local</Text>
-      </View>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={styles.topSection}>
+            <Text style={styles.logo}>🛒</Text>
+            <Text style={styles.brand}>MiBazarVirtual</Text>
+            <Text style={styles.tagline}>Tu mercado local</Text>
+          </View>
 
-      <View style={styles.form}>
-        <Text style={styles.title}>Bienvenido de nuevo</Text>
-        <Text style={styles.subtitle}>Ingresa para continuar</Text>
+          <View style={styles.form}>
+            <Text style={styles.title}>Bienvenido de nuevo</Text>
+            <Text style={styles.subtitle}>Ingresa para continuar</Text>
 
-        <View style={styles.spacer} />
+            <View style={styles.spacer} />
 
-        <AppInput
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          leftIcon="mail-outline"
-        />
-        <AppInput
-          label="Contraseña"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-          leftIcon="lock-closed-outline"
-          rightIcon={{
-            name: showPassword ? 'eye-off-outline' : 'eye-outline',
-            onPress: () => setShowPassword((current) => !current),
-          }}
-        />
+            <AppInput
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              leftIcon="mail-outline"
+            />
+            <AppInput
+              label="Contraseña"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              leftIcon="lock-closed-outline"
+              rightIcon={{
+                name: showPassword ? 'eye-off-outline' : 'eye-outline',
+                onPress: () => setShowPassword((current) => !current),
+              }}
+            />
 
-        {error ? <Text style={styles.errorCard}>{error}</Text> : null}
+            {error ? <Text style={styles.errorCard}>{error}</Text> : null}
 
-        <View style={styles.buttonSpacer} />
-        <AppButton title="Iniciar Sesión" onPress={handleLogin} loading={loading} fullWidth />
+            <View style={styles.buttonSpacer} />
+            <AppButton title="Iniciar Sesión" onPress={handleLogin} loading={loading} fullWidth />
 
-        <View style={styles.registerRow}>
-          <Text style={styles.registerText}>¿No tienes cuenta?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
-            <Text style={styles.registerLink}> Registrarse</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <View style={styles.registerRow}>
+              <Text style={styles.registerText}>¿No tienes cuenta?</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
+                <Text style={styles.registerLink}> Registrarse</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -102,13 +109,18 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    backgroundColor: colors.surface,
+  },
   topSection: {
-    height: hp(28),
+    minHeight: hp(28),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.secondary,
     borderBottomLeftRadius: scale(32),
     borderBottomRightRadius: scale(32),
+    paddingHorizontal: spacing.md,
   },
   logo: {
     fontSize: 48,
@@ -124,7 +136,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   form: {
-    flex: 1,
+    flexGrow: 1,
     padding: spacing.md,
   },
   title: {
