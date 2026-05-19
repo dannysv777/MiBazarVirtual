@@ -102,6 +102,18 @@ public class ChatController {
         return ResponseEntity.ok(chatService.getMessages(conversationId, userId, pageable));
     }
 
+    @PostMapping("/{conversationId}/messages")
+    public ResponseEntity<MessageDTO> sendMessageRest(
+            @PathVariable Long conversationId,
+            @Valid @RequestBody SendMessageRequest request,
+            Authentication authentication
+    ) {
+        Long senderId = authenticatedUserResolver.currentUserId(authentication);
+        MessageDTO message = chatService.sendMessage(conversationId, senderId, request.content());
+        messagingTemplate.convertAndSend("/topic/conversation/" + conversationId, message);
+        return ResponseEntity.ok(message);
+    }
+
     // REST: contador global que alimenta badges/notificaciones en el frontend.
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Integer>> getUnreadCount(Authentication authentication) {

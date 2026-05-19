@@ -195,6 +195,7 @@ public class ChatService {
 
     private MessageDTO toMessageDTO(Message message) {
         return new MessageDTO(
+                message.getId(),
                 message.getConversation().getId(),
                 message.getSender().getId(),
                 message.getSender().getUsername(),

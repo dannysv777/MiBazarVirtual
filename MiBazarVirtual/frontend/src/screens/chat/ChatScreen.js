@@ -56,7 +56,7 @@ export default function ChatScreen({ navigation, route }) {
     returnToConversations,
   } = route.params;
   const { user } = useAuth();
-  const { isConnected, subscribeToConversation, sendMessage, sendTyping, refreshUnreadCount } = useChat();
+  const { isConnected, subscribeToConversation, sendTyping, refreshUnreadCount } = useChat();
   const { showInfo, showError } = useToast();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -126,7 +126,7 @@ export default function ChatScreen({ navigation, route }) {
 
   const handleProductPress = async (product) => {
     if (!product?.id) {
-      showInfo('Publicacion de producto no disponible.');
+      showInfo('Publicación de producto no disponible.');
       return;
     }
 
@@ -138,13 +138,13 @@ export default function ChatScreen({ navigation, route }) {
         || Number(latestProduct?.stock ?? 1) <= 0;
 
       if (isUnavailable) {
-        showInfo('Publicacion de producto agotado o no disponible.');
+        showInfo('Publicación de producto agotado o no disponible.');
         return;
       }
 
       navigation.navigate('ProductDetail', { productId: product.id });
     } catch (productError) {
-      showInfo('Publicacion de producto agotado o no disponible.');
+      showInfo('Publicación de producto agotado o no disponible.');
     }
   };
 
@@ -271,11 +271,6 @@ export default function ChatScreen({ navigation, route }) {
       return;
     }
 
-    if (!isConnected) {
-      setError('Conectando al chat. Espera unos segundos e intenta de nuevo.');
-      return;
-    }
-
     setSending(true);
     setInputText('');
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -301,20 +296,27 @@ export default function ChatScreen({ navigation, route }) {
       isRead: false,
     };
 
-    const delivered = sendMessage(conversationId, content);
-
-    if (!delivered) {
-      setError('Sin conexión al chat. Intenta de nuevo en un momento.');
-      setInputText(rawContent);
-      setSending(false);
-      return;
-    }
-
     setMessages((current) => [optimisticMessage, ...current]);
     setContextAttached(false);
     scrollToNewest();
-    setError('');
-    setSending(false);
+
+    try {
+      const response = await chatApi.sendMessage(conversationId, content);
+      const savedMessage = normalizeIncomingMessage(getPayload(response));
+      setMessages((current) => [
+        savedMessage,
+        ...current.filter((message) => String(message.id) !== String(optimisticMessage.id)
+          && String(message.id) !== String(savedMessage.id)),
+      ]);
+      refreshUnreadCount();
+      setError('');
+    } catch (sendError) {
+      setMessages((current) => current.filter((message) => String(message.id) !== String(optimisticMessage.id)));
+      setInputText(rawContent);
+      setError(getErrorMessage(sendError, 'No pudimos enviar el mensaje. Intenta de nuevo.'));
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -369,6 +371,13 @@ export default function ChatScreen({ navigation, route }) {
               />
             )}
             ListHeaderComponent={isTyping ? <TypingIndicator /> : null}
+            ListEmptyComponent={(
+              <View style={styles.emptyChat}>
+                <Ionicons name="chatbubbles-outline" size={30} color={colors.textLight} />
+                <Text style={styles.emptyChatTitle}>Aún no hay mensajes</Text>
+                <Text style={styles.emptyChatText}>Escribe el primero para iniciar la conversación.</Text>
+              </View>
+            )}
           />
         )}
 
@@ -393,16 +402,16 @@ export default function ChatScreen({ navigation, route }) {
           <TextInput
             value={inputText}
             onChangeText={handleChangeText}
-            placeholder={isConnected ? 'Escribe un mensaje...' : 'Conectando al chat...'}
+            placeholder="Escribe un mensaje..."
             placeholderTextColor={colors.textLight}
             multiline
             style={styles.input}
           />
           <TouchableOpacity
             activeOpacity={0.85}
-            disabled={!inputText.trim() || !isConnected || sending}
+            disabled={!inputText.trim() || sending}
             onPress={handleSend}
-            style={[styles.sendButton, inputText.trim() && isConnected ? styles.sendButtonActive : styles.sendButtonDisabled]}
+            style={[styles.sendButton, inputText.trim() ? styles.sendButtonActive : styles.sendButtonDisabled]}
           >
             <Ionicons name="send" size={20} color={colors.surface} />
           </TouchableOpacity>
@@ -507,7 +516,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   messagesContent: {
+    flexGrow: 1,
     paddingVertical: spacing.md,
+  },
+  emptyChat: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxl,
+  },
+  emptyChatTitle: {
+    ...typography.bodyBold,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
+  emptyChatText: {
+    ...typography.small,
+    color: colors.textLight,
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
   inputWrap: {
     borderTopWidth: 1,

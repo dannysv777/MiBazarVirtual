@@ -130,7 +130,7 @@ export default function ProfileScreen({ navigation }) {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      showError('Necesitamos permiso para abrir tu galeria.');
+      showError('Necesitamos permiso para abrir tu galería.');
       return;
     }
 
@@ -310,7 +310,11 @@ export default function ProfileScreen({ navigation }) {
               <>
                 <StatCard icon="📦" value={stats?.totalOrders ?? 0} label="Pedidos" />
                 <StatCard icon="✅" value={stats?.deliveredOrders ?? 0} label="Entregados" />
-                <StatCard icon="💰" value={formatPrice(stats?.totalSpent ?? 0).replace('.00', '')} label="Gastado" />
+                <StatCard
+                  icon="💰"
+                  value={formatPrice(stats?.totalSpent ?? 0).replace('.00', '')}
+                  label={role === 'DELIVERY' ? 'Cobrado' : 'Gastado'}
+                />
               </>
             )}
           </View>
@@ -334,7 +338,9 @@ export default function ProfileScreen({ navigation }) {
                 />
               </>
             ) : null}
-            <MenuRow icon="chatbubble-outline" label="Mis conversaciones" onPress={() => navigation.navigate('Mensajes')} />
+            {role !== 'DELIVERY' ? (
+              <MenuRow icon="chatbubble-outline" label="Mis conversaciones" onPress={() => navigation.navigate('Mensajes')} />
+            ) : null}
 
             {role === 'SELLER' ? (
               <>

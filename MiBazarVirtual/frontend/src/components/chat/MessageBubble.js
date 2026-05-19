@@ -40,7 +40,7 @@ export default function MessageBubble({ message, isMine, onProductPress, fallbac
                 Consulta sobre producto
               </Text>
               <Text style={[styles.contextTitle, isMine ? styles.mineContextText : styles.theirContextText]} numberOfLines={1}>
-                {resolvedProduct.name ?? 'Publicacion de producto'}
+                {resolvedProduct.name ?? 'Publicación de producto'}
               </Text>
               {resolvedProduct.price != null ? (
                 <Text style={[styles.contextMeta, isMine ? styles.mineContextMeta : styles.theirContextMeta]} numberOfLines={1}>
@@ -48,7 +48,7 @@ export default function MessageBubble({ message, isMine, onProductPress, fallbac
                 </Text>
               ) : (
                 <Text style={[styles.contextMeta, isMine ? styles.mineContextMeta : styles.theirContextMeta]} numberOfLines={1}>
-                  Publicacion vinculada
+                  Publicación vinculada
                 </Text>
               )}
             </View>
