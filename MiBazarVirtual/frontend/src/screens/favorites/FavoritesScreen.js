@@ -3,12 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as favoritesApi from '../../api/favoritesApi';
 import EmptyState from '../../components/common/EmptyState';

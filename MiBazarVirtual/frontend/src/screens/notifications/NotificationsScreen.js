@@ -4,13 +4,13 @@ import { useCallback, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { RectButton, Swipeable } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as notificationsApi from '../../api/notificationsApi';
 import EmptyState from '../../components/common/EmptyState';
