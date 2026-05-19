@@ -2,6 +2,8 @@
 package com.mibazarvirtual.backend.entity;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -45,9 +47,16 @@ public class Conversation {
     @JoinColumn(name = "seller_id", nullable = false)
     private User seller;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id")
     private Product product;
+
+    @Enumerated(EnumType.STRING)
+    @jakarta.persistence.Column(name = "conversation_type", nullable = false, length = 30)
+    private Type conversationType = Type.PRODUCT;
+
+    @jakarta.persistence.Column(name = "order_id")
+    private Long orderId;
 
     // Hibernate asigna estas fechas automaticamente; updatedAt se usa para ordenar la bandeja.
     @CreationTimestamp
@@ -60,5 +69,10 @@ public class Conversation {
         this.buyer = buyer;
         this.seller = seller;
         this.product = product;
+        this.conversationType = Type.PRODUCT;
+    }
+
+    public enum Type {
+        PRODUCT, DIRECT, DELIVERY_ORDER
     }
 }

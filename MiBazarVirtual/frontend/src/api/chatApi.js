@@ -4,6 +4,10 @@ export const startConversation = (data) => (
   axiosInstance.post('/api/conversations/start', data)
 );
 
+export const startDirectConversation = (data) => (
+  axiosInstance.post('/api/conversations/start-direct', data)
+);
+
 export const getConversations = () => axiosInstance.get('/api/conversations');
 
 export const getMessages = (conversationId, params) => (

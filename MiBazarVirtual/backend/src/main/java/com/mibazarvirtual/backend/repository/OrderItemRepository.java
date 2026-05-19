@@ -19,6 +19,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
             join fetch oi.order o
             join fetch oi.product p
             join fetch oi.store s
+            join fetch s.user
             where o.id = :orderId
             order by oi.id asc
             """)

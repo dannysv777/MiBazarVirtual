@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import * as chatApi from '../../api/chatApi';
 import * as ordersApi from '../../api/ordersApi';
 import AppImage from '../../components/common/AppImage';
 import AppButton from '../../components/common/AppButton';
@@ -131,6 +132,35 @@ export default function OrderDetailScreen({ navigation, route }) {
     }
   };
 
+  const handleContactDelivery = async () => {
+    if (!order?.deliveryWorkerId) {
+      showError('Aun no hay repartidor asignado a este pedido.');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await chatApi.startDirectConversation({
+        recipientId: order.deliveryWorkerId,
+        orderId: order.id,
+      });
+      const conversation = getPayload(response);
+      navigation.navigate('Chat', {
+        conversationId: conversation.id,
+        otherUsername: order.deliveryWorkerName ?? conversation.otherParticipantUsername ?? 'Delivery',
+        buyerId: conversation.buyerId,
+        sellerId: conversation.sellerId,
+        conversationType: conversation.conversationType,
+        orderId: conversation.orderId,
+        returnToConversations: false,
+      });
+    } catch (chatError) {
+      showError(getErrorMessage(chatError, 'No pudimos abrir el chat con delivery.'));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -175,6 +205,16 @@ export default function OrderDetailScreen({ navigation, route }) {
         <StoreInfoCard order={order} navigation={navigation} />
 
         {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
+
+        {order.deliveryWorkerId ? (
+          <AppButton
+            title="Mensaje al repartidor"
+            variant="outline"
+            onPress={handleContactDelivery}
+            loading={actionLoading}
+            fullWidth
+          />
+        ) : null}
 
         {!isSeller && order.status === 'PENDING' ? (
           <AppButton

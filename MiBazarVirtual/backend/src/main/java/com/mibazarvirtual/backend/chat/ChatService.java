@@ -44,6 +44,33 @@ public class ChatService {
     }
 
     @Transactional
+    public ConversationDTO startOrGetDirectConversation(Long senderId, Long recipientId, Long orderId) {
+        if (senderId.equals(recipientId)) {
+            throw new IllegalArgumentException("Cannot start a conversation with yourself");
+        }
+
+        Long participantOneId = Math.min(senderId, recipientId);
+        Long participantTwoId = Math.max(senderId, recipientId);
+        Conversation.Type type = orderId == null ? Conversation.Type.DIRECT : Conversation.Type.DELIVERY_ORDER;
+
+        Conversation conversation = (orderId == null
+                ? conversationRepository.findFirstByBuyerIdAndSellerIdAndConversationTypeAndOrderIdIsNullOrderByUpdatedAtDesc(
+                        participantOneId,
+                        participantTwoId,
+                        type
+                )
+                : conversationRepository.findFirstByBuyerIdAndSellerIdAndConversationTypeAndOrderIdOrderByUpdatedAtDesc(
+                        participantOneId,
+                        participantTwoId,
+                        type,
+                        orderId
+                ))
+                .orElseGet(() -> createDirectConversation(participantOneId, participantTwoId, orderId, type));
+
+        return toConversationDTO(conversation, senderId);
+    }
+
+    @Transactional
     public MessageDTO sendMessage(Long conversationId, Long senderId, String content) {
         Conversation conversation = getConversationOrThrow(conversationId);
         // Seguridad de negocio: aunque alguien conozca el id del chat, solo comprador/vendedor pueden escribir.
@@ -111,6 +138,20 @@ public class ChatService {
         return conversationRepository.save(new Conversation(buyer, seller, product));
     }
 
+    private Conversation createDirectConversation(Long participantOneId, Long participantTwoId, Long orderId, Conversation.Type type) {
+        User participantOne = userRepository.findById(participantOneId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + participantOneId));
+        User participantTwo = userRepository.findById(participantTwoId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + participantTwoId));
+
+        Conversation conversation = new Conversation();
+        conversation.setBuyer(participantOne);
+        conversation.setSeller(participantTwo);
+        conversation.setConversationType(type);
+        conversation.setOrderId(orderId);
+        return conversationRepository.save(conversation);
+    }
+
     private Conversation getConversationOrThrow(Long conversationId) {
         return conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ConversationNotFoundException(conversationId));
@@ -141,8 +182,10 @@ public class ChatService {
                 conversation.getId(),
                 conversation.getBuyer().getId(),
                 conversation.getSeller().getId(),
-                conversation.getProduct().getId(),
-                conversation.getProduct().getName(),
+                conversation.getProduct() == null ? null : conversation.getProduct().getId(),
+                conversation.getProduct() == null ? null : conversation.getProduct().getName(),
+                conversation.getConversationType().name(),
+                conversation.getOrderId(),
                 lastMessage == null ? null : lastMessage.getContent(),
                 lastMessage == null ? null : lastMessage.getCreatedAt(),
                 messageRepository.countByConversationIdAndReadFalseAndSenderIdNot(conversation.getId(), currentUserId),

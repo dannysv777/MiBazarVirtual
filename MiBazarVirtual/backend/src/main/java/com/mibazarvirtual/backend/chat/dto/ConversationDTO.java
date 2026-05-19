@@ -10,6 +10,8 @@ public record ConversationDTO(
         Long sellerId,
         Long productId,
         String productName,
+        String conversationType,
+        Long orderId,
         String lastMessage,
         LocalDateTime lastMessageTime,
         int unreadCount,

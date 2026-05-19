@@ -52,6 +52,7 @@ export default function ChatScreen({ navigation, route }) {
     sellerId,
     buyerId,
     productContext,
+    conversationType,
     returnToConversations,
   } = route.params;
   const { user } = useAuth();
@@ -85,6 +86,10 @@ export default function ChatScreen({ navigation, route }) {
   };
 
   const handleParticipantPress = () => {
+    if (conversationType && conversationType !== 'PRODUCT') {
+      return;
+    }
+
     if (user?.role === 'SELLER' || Number(sellerId) === Number(user?.id)) {
       return;
     }
@@ -100,6 +105,10 @@ export default function ChatScreen({ navigation, route }) {
   };
 
   const getParticipantSubtitle = () => {
+    if (conversationType && conversationType !== 'PRODUCT') {
+      return isConnected ? 'Contacto directo' : 'Conectando...';
+    }
+
     if (user?.role === 'SELLER' || Number(sellerId) === Number(user?.id)) {
       return 'Comprador';
     }

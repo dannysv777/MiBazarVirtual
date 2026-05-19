@@ -12,6 +12,19 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     // Recupera el hilo mas reciente entre dos usuarios para continuar una conversacion existente.
     Optional<Conversation> findFirstByBuyerIdAndSellerIdOrderByUpdatedAtDesc(Long buyerId, Long sellerId);
 
+    Optional<Conversation> findFirstByBuyerIdAndSellerIdAndConversationTypeAndOrderIdOrderByUpdatedAtDesc(
+            Long buyerId,
+            Long sellerId,
+            Conversation.Type type,
+            Long orderId
+    );
+
+    Optional<Conversation> findFirstByBuyerIdAndSellerIdAndConversationTypeAndOrderIdIsNullOrderByUpdatedAtDesc(
+            Long buyerId,
+            Long sellerId,
+            Conversation.Type type
+    );
+
     // Bandeja de entrada: conversaciones donde el usuario participa como comprador o vendedor.
     List<Conversation> findByBuyerIdOrSellerIdOrderByUpdatedAtDesc(Long buyerId, Long sellerId);
 

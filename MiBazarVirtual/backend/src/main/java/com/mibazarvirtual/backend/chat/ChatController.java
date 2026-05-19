@@ -5,6 +5,7 @@ import com.mibazarvirtual.backend.chat.dto.ConversationDTO;
 import com.mibazarvirtual.backend.chat.dto.MessageDTO;
 import com.mibazarvirtual.backend.chat.dto.SendMessageRequest;
 import com.mibazarvirtual.backend.chat.dto.StartConversationRequest;
+import com.mibazarvirtual.backend.chat.dto.StartDirectConversationRequest;
 import com.mibazarvirtual.backend.chat.dto.TypingNotification;
 import com.mibazarvirtual.backend.security.AuthenticatedUserResolver;
 import jakarta.validation.Valid;
@@ -66,6 +67,19 @@ public class ChatController {
                 request.productId()
         );
         return ResponseEntity.ok(conversation);
+    }
+
+    @PostMapping("/start-direct")
+    public ResponseEntity<ConversationDTO> startDirectConversation(
+            @Valid @RequestBody StartDirectConversationRequest request,
+            Authentication authentication
+    ) {
+        Long senderId = authenticatedUserResolver.currentUserId(authentication);
+        return ResponseEntity.ok(chatService.startOrGetDirectConversation(
+                senderId,
+                request.recipientId(),
+                request.orderId()
+        ));
     }
 
     // REST: lista las conversaciones del usuario para la bandeja de mensajes.

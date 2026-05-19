@@ -28,6 +28,10 @@ const getOtherName = (conversation) => (
 );
 
 const getConversationGroupKey = (conversation, user) => {
+  if (conversation.conversationType && conversation.conversationType !== 'PRODUCT') {
+    return `direct-${conversation.buyerId}-${conversation.sellerId}-${conversation.orderId ?? 'general'}`;
+  }
+
   if (user?.role === 'BUYER') {
     return `seller-${conversation.sellerId ?? getOtherName(conversation)}`;
   }
@@ -123,6 +127,8 @@ export default function ConversationsScreen({ navigation }) {
           productId: item.productId,
           sellerId: item.sellerId,
           buyerId: item.buyerId,
+          conversationType: item.conversationType,
+          orderId: item.orderId,
           returnToConversations: true,
         })}
       >
@@ -157,7 +163,11 @@ export default function ConversationsScreen({ navigation }) {
             <Text style={styles.unreadSummary}>{unreadCount} sin leer</Text>
           ) : (
             <Text style={styles.subtitle}>
-              {user?.role === 'SELLER' ? 'Conversaciones con compradores' : 'Conversaciones con vendedores'}
+              {user?.role === 'SELLER'
+                ? 'Conversaciones con compradores y delivery'
+                : user?.role === 'DELIVERY'
+                  ? 'Conversaciones con clientes y vendedores'
+                  : 'Conversaciones con vendedores y delivery'}
             </Text>
           )}
         </View>

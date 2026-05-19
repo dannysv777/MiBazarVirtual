@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import * as chatApi from '../../api/chatApi';
 import * as ordersApi from '../../api/ordersApi';
 import AppButton from '../../components/common/AppButton';
 import EmptyState from '../../components/common/EmptyState';
@@ -27,7 +28,7 @@ const tabs = [
   { key: 'MINE', label: 'Mis entregas' },
 ];
 
-export default function DeliveryOrdersScreen() {
+export default function DeliveryOrdersScreen({ navigation }) {
   const { showError, showSuccess } = useToast();
   const [activeTab, setActiveTab] = useState('AVAILABLE');
   const [availableOrders, setAvailableOrders] = useState([]);
@@ -95,6 +96,29 @@ export default function DeliveryOrdersScreen() {
     }
   };
 
+  const startDirectChat = async (recipientId, otherUsername, orderId) => {
+    if (!recipientId) {
+      showError('No encontramos el usuario para iniciar el chat.');
+      return;
+    }
+
+    try {
+      const response = await chatApi.startDirectConversation({ recipientId, orderId });
+      const conversation = response.data?.data ?? response.data;
+      navigation.navigate('Chat', {
+        conversationId: conversation.id,
+        otherUsername,
+        buyerId: conversation.buyerId,
+        sellerId: conversation.sellerId,
+        conversationType: conversation.conversationType,
+        orderId: conversation.orderId,
+        returnToConversations: false,
+      });
+    } catch (chatError) {
+      showError(getErrorMessage(chatError, 'No pudimos abrir el chat.'));
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
@@ -141,6 +165,8 @@ export default function DeliveryOrdersScreen() {
               onAccept={() => runAction(item, 'accept')}
               onPickup={() => runAction(item, 'pickup')}
               onDeliver={() => runAction(item, 'deliver')}
+              onChatBuyer={() => startDirectChat(item.buyerId, item.buyerName ?? 'Cliente', item.orderId)}
+              onChatSeller={(group) => startDirectChat(group.sellerId, group.sellerUsername ?? group.storeName, item.orderId)}
             />
           )}
           ListEmptyComponent={(
@@ -156,7 +182,7 @@ export default function DeliveryOrdersScreen() {
   );
 }
 
-function DeliveryOrderCard({ order, mode, loadingId, onAccept, onPickup, onDeliver }) {
+function DeliveryOrderCard({ order, mode, loadingId, onAccept, onPickup, onDeliver, onChatBuyer, onChatSeller }) {
   const isReady = order.status === 'READY_FOR_PICKUP';
   const isProgress = order.status === 'IN_PROGRESS';
 
@@ -175,10 +201,21 @@ function DeliveryOrderCard({ order, mode, loadingId, onAccept, onPickup, onDeliv
         <Text style={styles.address} numberOfLines={2}>{order.deliveryAddress ?? 'Direccion no disponible'}</Text>
       </View>
 
+      <TouchableOpacity activeOpacity={0.85} onPress={onChatBuyer} style={styles.chatRowButton}>
+        <Ionicons name="chatbubble-outline" size={17} color={colors.primary} />
+        <Text style={styles.chatRowText}>Mensaje al cliente</Text>
+      </TouchableOpacity>
+
       {order.vendorGroups?.map((group) => (
         <View key={`${order.orderId}-${group.storeName}`} style={styles.vendorGroup}>
-          <Text style={styles.vendorName}>{group.storeName}</Text>
-          <Text style={styles.vendorMeta}>{group.items?.length ?? 0} producto(s)</Text>
+          <View>
+            <Text style={styles.vendorName}>{group.storeName}</Text>
+            <Text style={styles.vendorMeta}>{group.items?.length ?? 0} producto(s)</Text>
+          </View>
+          <TouchableOpacity activeOpacity={0.82} onPress={() => onChatSeller(group)} style={styles.vendorChatButton}>
+            <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.secondary} />
+            <Text style={styles.vendorChatText}>Chat</Text>
+          </TouchableOpacity>
         </View>
       ))}
 
@@ -308,6 +345,7 @@ const styles = StyleSheet.create({
   },
   vendorGroup: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: spacing.xs,
     borderTopWidth: 1,
@@ -320,5 +358,35 @@ const styles = StyleSheet.create({
   vendorMeta: {
     ...typography.tiny,
     color: colors.textSecondary,
+  },
+  chatRowButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+  },
+  chatRowText: {
+    ...typography.small,
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  vendorChatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: '#EAF8EF',
+  },
+  vendorChatText: {
+    ...typography.tiny,
+    color: colors.secondary,
+    fontWeight: '800',
   },
 });

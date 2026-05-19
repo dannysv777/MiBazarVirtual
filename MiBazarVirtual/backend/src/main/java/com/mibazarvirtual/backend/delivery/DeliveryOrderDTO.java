@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 public record DeliveryOrderDTO(
         Long orderId,
+        Long buyerId,
         String buyerName,
         String deliveryAddress,
         String buyerPhone,
@@ -29,6 +30,7 @@ public record DeliveryOrderDTO(
 
         return new DeliveryOrderDTO(
                 order.getId(),
+                order.getBuyer().getId(),
                 order.getBuyer().getFullName(),
                 order.getDeliveryAddress(),
                 order.getBuyer().getPhone(),
