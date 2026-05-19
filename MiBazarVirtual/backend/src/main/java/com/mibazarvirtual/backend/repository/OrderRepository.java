@@ -81,6 +81,22 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             """, nativeQuery = true)
     BuyerOrderStatsProjection getBuyerOrderStats(@Param("buyerId") Long buyerId);
 
+    @Query(value = """
+            SELECT
+                COUNT(*) AS totalOrders,
+                COALESCE(SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pendingOrders,
+                COALESCE(SUM(CASE WHEN status = 'PARTIALLY_CONFIRMED' THEN 1 ELSE 0 END), 0) AS partiallyConfirmedOrders,
+                COALESCE(SUM(CASE WHEN status = 'CONFIRMED' THEN 1 ELSE 0 END), 0) AS confirmedOrders,
+                COALESCE(SUM(CASE WHEN status = 'READY_FOR_PICKUP' THEN 1 ELSE 0 END), 0) AS readyForPickupOrders,
+                COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0) AS inProgressOrders,
+                COALESCE(SUM(CASE WHEN status = 'DELIVERED' THEN 1 ELSE 0 END), 0) AS deliveredOrders,
+                COALESCE(SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS cancelledOrders,
+                COALESCE(SUM(CASE WHEN status = 'DELIVERED' THEN total ELSE 0 END), 0) AS deliveredRevenue,
+                COALESCE(SUM(CASE WHEN status = 'DELIVERED' THEN delivery_fee ELSE 0 END), 0) AS deliveryFees
+            FROM orders
+            """, nativeQuery = true)
+    AdminOrderStatsProjection getAdminOrderStats();
+
     interface SellerOrderStatsProjection {
         long getTotalOrders();
 
@@ -105,5 +121,27 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         long getCancelledOrders();
 
         java.math.BigDecimal getTotalSpent();
+    }
+
+    interface AdminOrderStatsProjection {
+        long getTotalOrders();
+
+        long getPendingOrders();
+
+        long getPartiallyConfirmedOrders();
+
+        long getConfirmedOrders();
+
+        long getReadyForPickupOrders();
+
+        long getInProgressOrders();
+
+        long getDeliveredOrders();
+
+        long getCancelledOrders();
+
+        java.math.BigDecimal getDeliveredRevenue();
+
+        java.math.BigDecimal getDeliveryFees();
     }
 }

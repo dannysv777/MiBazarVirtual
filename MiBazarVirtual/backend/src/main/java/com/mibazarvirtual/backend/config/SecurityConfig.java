@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/recommendations/stores").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/recommendations/similar").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/recommendations/trending").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/delivery/**").hasRole("DELIVERY")
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/**").authenticated()

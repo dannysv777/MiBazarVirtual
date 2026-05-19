@@ -80,9 +80,10 @@ export default function MainTabs() {
   const { user } = useAuth();
   const { itemCount, cartPulseKey } = useCart();
   const { unreadCount } = useChat();
-  const isBuyer = user?.role === 'BUYER';
-  const isSeller = user?.role === 'SELLER';
-  const isDelivery = user?.role === 'DELIVERY';
+  const role = String(user?.role ?? '').trim().toUpperCase();
+  const isBuyer = role === 'BUYER';
+  const isSeller = role === 'SELLER';
+  const isDelivery = role === 'DELIVERY';
 
   return (
     <Tab.Navigator
