@@ -4,13 +4,14 @@ Marketplace de alimentos desarrollado como proyecto de grado de Ingenieria en Si
 
 ## Estado Actual
 
-El backend ya esta desplegado en Railway y expone datos reales de demostracion.
+El backend ya esta desplegado en Railway y expone datos reales de demostracion. El proyecto ya incluye catalogo, recomendaciones, favoritos, chat, notificaciones internas, carrito multi-tienda, pedidos multi-vendedor, flujo de vendedor, flujo de repartidor y estructura visual de billetera/pagos.
 
 - Backend publico: https://mibazarvirtual-production.up.railway.app
 - Health check: https://mibazarvirtual-production.up.railway.app/actuator/health
 - Base de datos: MySQL en Railway
 - Migraciones: Flyway
 - Deploy: Railway conectado al repositorio GitHub
+- Resumen para presentacion: `docs/estado-actual-implementacion.md`
 
 ## Stack
 
@@ -237,8 +238,8 @@ En Railway no usar `MYSQL_URL` directamente como `DATABASE_URL`, porque suele ve
 
 ## Pendientes Proximos
 
-- CRUD administrativo de productos, tiendas y categorias.
-- Modulo de pedidos completo.
-- Integracion del frontend Expo con la API publica.
-- Pruebas end-to-end del chat con dos usuarios.
-- Documentacion tecnica: arquitectura, ERD y flujo de deploy.
+- Probar el flujo completo comprador -> vendedor -> delivery en dispositivos reales.
+- Conectar notificaciones push cuando se implemente el modulo correspondiente.
+- Agregar reportes reales para vendedores.
+- Endurecer pruebas automatizadas para pedidos multi-vendedor.
+- Integrar Stripe u otro proveedor cuando se active pago real.
