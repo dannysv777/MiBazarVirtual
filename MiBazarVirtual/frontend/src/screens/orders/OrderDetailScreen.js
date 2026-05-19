@@ -27,14 +27,14 @@ import { getErrorMessage, getPayload } from '../../utils/apiResponse';
 const steps = [
   { status: 'PENDING', label: 'Pendiente' },
   { status: 'CONFIRMED', label: 'Confirmado' },
+  { status: 'READY_FOR_PICKUP', label: 'Listo' },
   { status: 'IN_PROGRESS', label: 'En camino' },
   { status: 'DELIVERED', label: 'Entregado' },
 ];
 
 const nextStatusMap = {
-  PENDING: { status: 'CONFIRMED', label: 'Confirmar pedido' },
-  CONFIRMED: { status: 'IN_PROGRESS', label: 'Marcar en camino' },
-  IN_PROGRESS: { status: 'DELIVERED', label: 'Marcar como entregado' },
+  PENDING: { status: 'CONFIRMED', label: 'Confirmar productos disponibles' },
+  PARTIALLY_CONFIRMED: { status: 'CONFIRMED', label: 'Confirmar productos disponibles' },
 };
 
 export default function OrderDetailScreen({ navigation, route }) {
@@ -71,9 +71,18 @@ export default function OrderDetailScreen({ navigation, route }) {
     loadOrder();
   }, [loadOrder]);
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.getParent()?.navigate('Pedidos', { screen: isSeller ? 'SellerOrders' : 'Orders' });
+  };
+
   const refreshAfterAction = async () => {
     if (isSeller) {
-      navigation.goBack();
+      handleBack();
       return;
     }
     await loadOrder();
@@ -91,7 +100,7 @@ export default function OrderDetailScreen({ navigation, route }) {
             const response = await ordersApi.cancelOrder(orderId);
             setOrder(getPayload(response));
             showSuccess('Pedido cancelado');
-            navigation.goBack();
+            handleBack();
           } catch (cancelError) {
             showError(getErrorMessage(cancelError));
           } finally {
@@ -108,9 +117,12 @@ export default function OrderDetailScreen({ navigation, route }) {
 
     setActionLoading(true);
     try {
-      const response = await ordersApi.updateOrderStatus(orderId, next.status);
+      const pendingItems = (order.items ?? []).filter((item) => (item.itemStatus ?? 'PENDING') === 'PENDING');
+      const response = pendingItems.length && pendingItems.every((item) => item.id)
+        ? await confirmSellerItems(pendingItems)
+        : await ordersApi.updateOrderStatus(orderId, next.status);
       setOrder(getPayload(response));
-      showSuccess('Estado actualizado correctamente');
+      showSuccess('Productos confirmados correctamente');
       await refreshAfterAction();
     } catch (statusError) {
       showError(getErrorMessage(statusError));
@@ -134,20 +146,21 @@ export default function OrderDetailScreen({ navigation, route }) {
         <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
         <View style={styles.centerState}>
           <Text style={styles.errorText}>{error}</Text>
-          <AppButton title="Volver" variant="outline" onPress={() => navigation.goBack()} />
+          <AppButton title="Volver" variant="outline" onPress={handleBack} />
         </View>
       </SafeAreaView>
     );
   }
 
-  const sellerAction = nextStatusMap[order.status];
+  const hasPendingSellerItems = (order.items ?? []).some((item) => (item.itemStatus ?? 'PENDING') === 'PENDING');
+  const sellerAction = hasPendingSellerItems ? nextStatusMap[order.status] : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerText}>
@@ -190,6 +203,18 @@ export default function OrderDetailScreen({ navigation, route }) {
             fullWidth
           />
         ) : null}
+
+        {isSeller && !sellerAction ? (
+          <View style={styles.sellerInfoCard}>
+            <Ionicons name="bicycle-outline" size={22} color={colors.secondary} />
+            <View style={styles.sellerInfoText}>
+              <Text style={styles.sellerInfoTitle}>Pedido confirmado</Text>
+              <Text style={styles.sellerInfoBody}>
+                Prepara estos productos y entregalos al repartidor cuando llegue.
+              </Text>
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
 
       <ReviewBottomSheet
@@ -205,10 +230,22 @@ export default function OrderDetailScreen({ navigation, route }) {
       />
     </SafeAreaView>
   );
+
+  async function confirmSellerItems(pendingItems) {
+    let response = null;
+    for (const item of pendingItems) {
+      response = await ordersApi.confirmOrderItem(orderId, item.id, {
+        available: true,
+        note: 'Confirmado por vendedor',
+      });
+    }
+    return response;
+  }
 }
 
 function StatusTimeline({ status }) {
-  const currentIndex = steps.findIndex((step) => step.status === status);
+  const normalizedStatus = status === 'PARTIALLY_CONFIRMED' ? 'PENDING' : status;
+  const currentIndex = steps.findIndex((step) => step.status === normalizedStatus);
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -271,6 +308,8 @@ function OrderItemsCard({ order }) {
 }
 
 function StoreInfoCard({ order, navigation }) {
+  const canOpenStore = Boolean(order.storeId);
+
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Tienda</Text>
@@ -279,10 +318,13 @@ function StoreInfoCard({ order, navigation }) {
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => navigation.navigate('StoreDetail', { storeId: order.storeId })}
-        style={styles.storeLink}
+        disabled={!canOpenStore}
+        style={[styles.storeLink, !canOpenStore && styles.disabledStoreLink]}
       >
-        <Text style={styles.storeLinkText}>Ver tienda</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+        <Text style={[styles.storeLinkText, !canOpenStore && styles.disabledStoreLinkText]}>
+          {canOpenStore ? 'Ver tienda' : 'Pedido de varias tiendas'}
+        </Text>
+        {canOpenStore ? <Ionicons name="chevron-forward" size={16} color={colors.primary} /> : null}
       </TouchableOpacity>
     </View>
   );
@@ -525,10 +567,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.md,
   },
+  disabledStoreLink: {
+    opacity: 0.7,
+  },
   storeLinkText: {
     ...typography.small,
     color: colors.primary,
     fontWeight: '700',
+  },
+  disabledStoreLinkText: {
+    color: colors.textSecondary,
+  },
+  sellerInfoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 12,
+    backgroundColor: '#EAF8EF',
+  },
+  sellerInfoText: {
+    flex: 1,
+  },
+  sellerInfoTitle: {
+    ...typography.bodyBold,
+    color: colors.secondary,
+  },
+  sellerInfoBody: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   successText: {
     ...typography.small,

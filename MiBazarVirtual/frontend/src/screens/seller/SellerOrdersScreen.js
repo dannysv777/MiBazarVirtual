@@ -1,4 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -24,22 +25,30 @@ const statusFilters = [
   { key: 'ALL', label: 'Todos', emptyTitle: 'Aun no tienes pedidos recibidos' },
   { key: 'PENDING', label: 'Pendientes', emptyTitle: 'No tienes pedidos pendientes' },
   { key: 'CONFIRMED', label: 'Confirmados', emptyTitle: 'No tienes pedidos confirmados' },
-  { key: 'IN_PROGRESS', label: 'En camino', emptyTitle: 'No tienes pedidos en camino' },
-  { key: 'DELIVERED', label: 'Entregados', emptyTitle: 'No tienes pedidos entregados' },
 ];
 
 const statCards = [
-  { key: 'PENDING', statKey: 'pending', label: 'Pendientes', style: 'pending' },
-  { key: 'CONFIRMED', statKey: 'confirmed', label: 'Confirmados', style: 'confirmed' },
-  { key: 'IN_PROGRESS', statKey: 'inProgress', label: 'En camino', style: 'inProgress' },
-  { key: 'DELIVERED', statKey: 'delivered', label: 'Entregados', style: 'delivered' },
+  {
+    key: 'PENDING',
+    statKey: 'pending',
+    label: 'Pendientes',
+    hint: 'Por aceptar',
+    icon: 'time-outline',
+    style: 'pending',
+  },
+  {
+    key: 'CONFIRMED',
+    statKey: 'confirmed',
+    label: 'Confirmados',
+    hint: 'Para delivery',
+    icon: 'checkmark-done-outline',
+    style: 'confirmed',
+  },
 ];
 
 const initialStats = {
   pending: 0,
   confirmed: 0,
-  inProgress: 0,
-  delivered: 0,
 };
 
 const emptyByStatus = statusFilters.reduce((acc, item) => ({ ...acc, [item.key]: item.emptyTitle }), {});
@@ -52,11 +61,16 @@ export default function SellerOrdersScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
+  const getSellerStage = (order) => {
+    const items = order.items ?? [];
+    const hasPendingItems = items.some((item) => (item.itemStatus ?? 'PENDING') === 'PENDING');
+    return hasPendingItems ? 'PENDING' : 'CONFIRMED';
+  };
+
   const computeStats = (nextOrders) => nextOrders.reduce((acc, order) => {
-    if (order.status === 'PENDING') acc.pending += 1;
-    if (order.status === 'CONFIRMED') acc.confirmed += 1;
-    if (order.status === 'IN_PROGRESS') acc.inProgress += 1;
-    if (order.status === 'DELIVERED') acc.delivered += 1;
+    const stage = getSellerStage(order);
+    if (stage === 'PENDING') acc.pending += 1;
+    if (stage === 'CONFIRMED') acc.confirmed += 1;
     return acc;
   }, { ...initialStats });
 
@@ -88,7 +102,7 @@ export default function SellerOrdersScreen({ navigation }) {
   );
 
   const filteredOrders = useMemo(() => (
-    activeStatus === 'ALL' ? orders : orders.filter((order) => order.status === activeStatus)
+    activeStatus === 'ALL' ? orders : orders.filter((order) => getSellerStage(order) === activeStatus)
   ), [activeStatus, orders]);
 
   const activeEmptyTitle = emptyByStatus[activeStatus] ?? 'Sin pedidos';
@@ -98,7 +112,7 @@ export default function SellerOrdersScreen({ navigation }) {
       <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <Text style={styles.title}>Pedidos recibidos</Text>
-        <Text style={styles.subtitle}>Gestiona el flujo de ventas de tu tienda</Text>
+        <Text style={styles.subtitle}>Acepta productos y prepara pedidos para el repartidor</Text>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
@@ -113,8 +127,14 @@ export default function SellerOrdersScreen({ navigation }) {
               activeStatus === card.key && styles.statCardActive,
             ]}
           >
-            <Text style={styles.statCount}>{stats[card.statKey]}</Text>
+            <View style={styles.statTopRow}>
+              <View style={styles.statIcon}>
+                <Ionicons name={card.icon} size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.statCount}>{stats[card.statKey]}</Text>
+            </View>
             <Text style={styles.statLabel}>{card.label}</Text>
+            <Text style={styles.statHint}>{card.hint}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -203,11 +223,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   statCard: {
-    width: scale(118),
-    minHeight: scale(78),
-    justifyContent: 'center',
+    width: scale(154),
+    minHeight: scale(104),
     padding: spacing.md,
-    borderRadius: scale(12),
+    borderRadius: scale(16),
     marginRight: spacing.sm,
     borderWidth: 1,
     borderColor: 'transparent',
@@ -215,27 +234,40 @@ const styles = StyleSheet.create({
   },
   statCardActive: {
     borderColor: colors.primary,
+    backgroundColor: colors.surface,
   },
   pendingStat: {
-    backgroundColor: '#FFF4E5',
+    backgroundColor: '#FFF6E8',
   },
   confirmedStat: {
-    backgroundColor: '#EAF3FF',
-  },
-  inProgressStat: {
-    backgroundColor: '#FFF8E1',
-  },
-  deliveredStat: {
     backgroundColor: '#EAF8EF',
+  },
+  statTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statIcon: {
+    width: scale(34),
+    height: scale(34),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: scale(17),
+    backgroundColor: colors.surface,
   },
   statCount: {
     ...typography.h3,
     color: colors.primary,
   },
   statLabel: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+    marginTop: spacing.sm,
+  },
+  statHint: {
     ...typography.tiny,
     color: colors.textSecondary,
-    marginTop: spacing.xs,
+    marginTop: 2,
   },
   filtersScroll: {
     flexGrow: 0,

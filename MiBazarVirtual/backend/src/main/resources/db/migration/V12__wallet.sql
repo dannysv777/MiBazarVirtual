@@ -1,0 +1,37 @@
+CREATE TABLE saved_cards (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  card_alias VARCHAR(50) NOT NULL,
+  last_four CHAR(4) NOT NULL,
+  card_brand VARCHAR(20) NOT NULL,
+  expiry_month TINYINT NOT NULL,
+  expiry_year SMALLINT NOT NULL,
+  is_default BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_saved_cards_user (user_id)
+);
+
+CREATE TABLE seller_bank_accounts (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  seller_id BIGINT NOT NULL UNIQUE,
+  bank_name VARCHAR(100) NOT NULL,
+  account_number VARCHAR(50) NOT NULL,
+  account_holder VARCHAR(150) NOT NULL,
+  account_type VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL,
+  FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE order_payments (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  order_id BIGINT NOT NULL UNIQUE,
+  amount DECIMAL(10,2) NOT NULL,
+  platform_fee DECIMAL(10,2) NOT NULL,
+  seller_payout DECIMAL(10,2) NOT NULL,
+  payment_method VARCHAR(30) NOT NULL DEFAULT 'CASH_ON_DELIVERY',
+  payment_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);

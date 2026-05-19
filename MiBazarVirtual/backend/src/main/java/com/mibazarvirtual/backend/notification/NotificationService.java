@@ -33,6 +33,7 @@ public class NotificationService {
     public static final String NEW_ORDER_RECEIVED = "NEW_ORDER_RECEIVED";
     public static final String REVIEW_RECEIVED = "REVIEW_RECEIVED";
     public static final String PRODUCT_BACK_IN_STOCK = "PRODUCT_BACK_IN_STOCK";
+    public static final String DELIVERY_AVAILABLE = "DELIVERY_AVAILABLE";
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
@@ -64,7 +65,17 @@ public class NotificationService {
                 order.getBuyer().getId(),
                 ORDER_CONFIRMED,
                 "Pedido confirmado",
-                store.getName() + " confirmo tu pedido #" + order.getId(),
+                storeName(store) + " confirmo tu pedido #" + order.getId(),
+                Map.of("orderId", order.getId(), "type", ORDER_CONFIRMED)
+        );
+    }
+
+    public void notifyDeliveryAccepted(Order order) {
+        createNotification(
+                order.getBuyer().getId(),
+                ORDER_CONFIRMED,
+                "Tu pedido fue aceptado",
+                "El repartidor esta en camino para recoger tu pedido",
                 Map.of("orderId", order.getId(), "type", ORDER_CONFIRMED)
         );
     }
@@ -74,7 +85,7 @@ public class NotificationService {
                 order.getBuyer().getId(),
                 ORDER_IN_PROGRESS,
                 "Tu pedido esta en camino",
-                "Tu pedido de " + order.getStore().getName() + " esta en camino",
+                "Tu pedido de " + storeName(order.getStore()) + " esta en camino",
                 Map.of("orderId", order.getId(), "type", ORDER_IN_PROGRESS)
         );
     }
@@ -84,7 +95,7 @@ public class NotificationService {
                 order.getBuyer().getId(),
                 ORDER_DELIVERED,
                 "Pedido entregado",
-                "Recibiste tu pedido de " + order.getStore().getName() + ". Como estuvo?",
+                "Recibiste tu pedido de " + storeName(order.getStore()) + ". Como estuvo?",
                 Map.of("orderId", order.getId(), "canReview", true, "type", ORDER_DELIVERED)
         );
     }
@@ -100,13 +111,45 @@ public class NotificationService {
     }
 
     public void notifyNewOrderReceived(Order order) {
+        if (order.getStore() == null) {
+            return;
+        }
+        notifyNewOrderReceived(order, order.getStore());
+    }
+
+    public void notifyNewOrderReceived(Order order, Store store) {
+        notifyNewOrderReceived(order, store, 0);
+    }
+
+    public void notifyNewOrderReceived(Order order, Store store, long itemCount) {
         BigDecimal total = order.getTotal() == null ? BigDecimal.ZERO : order.getTotal();
         createNotification(
-                order.getStore().getUser().getId(),
+                store.getUser().getId(),
                 NEW_ORDER_RECEIVED,
                 "Nuevo pedido",
-                order.getBuyer().getFullName() + " realizo un pedido por Q" + total,
-                Map.of("orderId", order.getId(), "type", NEW_ORDER_RECEIVED)
+                "Tienes " + itemCount + " producto(s) en un nuevo pedido",
+                Map.of("orderId", order.getId(), "storeId", store.getId(), "itemCount", itemCount, "type", NEW_ORDER_RECEIVED)
+        );
+    }
+
+    public void notifyDeliveryAvailable(Order order) {
+        BigDecimal total = order.getTotal() == null ? BigDecimal.ZERO : order.getTotal();
+        userRepository.findByRoleAndActiveTrue(User.Role.DELIVERY).forEach(user -> createNotification(
+                user.getId(),
+                DELIVERY_AVAILABLE,
+                "Nuevo pedido disponible",
+                "Pedido de Q" + total + " listo para recoger",
+                Map.of("orderId", order.getId(), "type", DELIVERY_AVAILABLE)
+        ));
+    }
+
+    public void notifyItemRejected(Long buyerId, String productName) {
+        createNotification(
+                buyerId,
+                ORDER_CANCELLED,
+                "Producto no disponible",
+                productName + " no esta disponible en este momento",
+                Map.of("type", "ITEM_REJECTED", "productName", productName)
         );
     }
 
@@ -181,5 +224,9 @@ public class NotificationService {
             log.warn("Could not serialize notification data", exception);
             return null;
         }
+    }
+
+    private String storeName(Store store) {
+        return store == null ? "MiBazarVirtual" : store.getName();
     }
 }

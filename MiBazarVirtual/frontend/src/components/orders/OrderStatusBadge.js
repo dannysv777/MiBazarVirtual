@@ -2,7 +2,9 @@ import AppBadge from '../common/AppBadge';
 
 const statusConfig = {
   PENDING: { variant: 'warning', label: 'Pendiente' },
+  PARTIALLY_CONFIRMED: { variant: 'warning', label: 'Parcial' },
   CONFIRMED: { variant: 'info', label: 'Confirmado' },
+  READY_FOR_PICKUP: { variant: 'info', label: 'Listo' },
   IN_PROGRESS: { variant: 'warning', label: 'En camino' },
   DELIVERED: { variant: 'success', label: 'Entregado' },
   CANCELLED: { variant: 'gray', label: 'Cancelado' },

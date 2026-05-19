@@ -13,6 +13,22 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 
     List<OrderItem> findByOrderIdOrderByIdAsc(Long orderId);
 
+    List<OrderItem> findByOrderIdAndStoreIdOrderByIdAsc(Long orderId, Long storeId);
+
+    @Query("""
+            select oi
+            from OrderItem oi
+            join fetch oi.order o
+            join fetch oi.product p
+            join fetch oi.store s
+            where oi.id = :itemId
+              and o.id = :orderId
+            """)
+    java.util.Optional<OrderItem> findDetailedByOrderIdAndItemId(
+            @Param("orderId") Long orderId,
+            @Param("itemId") Long itemId
+    );
+
     @Query("""
             select oi.product.id as productId, count(oi.id) as total
             from OrderItem oi

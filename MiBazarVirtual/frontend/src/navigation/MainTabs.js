@@ -14,8 +14,10 @@ import CartScreen from '../screens/cart/CartScreen';
 import ChatScreen from '../screens/chat/ChatScreen';
 import ConversationsScreen from '../screens/chat/ConversationsScreen';
 import FavoritesScreen from '../screens/favorites/FavoritesScreen';
+import DeliveryOrdersScreen from '../screens/delivery/DeliveryOrdersScreen';
 import HomeScreen from '../screens/home/HomeScreen';
 import WeeklyPurchaseScreen from '../screens/home/WeeklyPurchaseScreen';
+import WalletScreen from '../screens/wallet/WalletScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import OrderConfirmationScreen from '../screens/orders/OrderConfirmationScreen';
 import OrderDetailScreen from '../screens/orders/OrderDetailScreen';
@@ -47,6 +49,7 @@ const tabIcons = {
   Carrito: ['cart', 'cart-outline'],
   Pedidos: ['receipt', 'receipt-outline'],
   'Mis Productos': ['cube', 'cube-outline'],
+  Delivery: ['bicycle', 'bicycle-outline'],
   Mensajes: ['chatbubble', 'chatbubble-outline'],
   Perfil: ['person', 'person-outline'],
 };
@@ -61,7 +64,6 @@ const fullScreenRoutes = new Set([
   'CreateProduct',
   'EditProduct',
   'SellerStore',
-  'SellerOrders',
   'WeeklyPurchase',
 ]);
 
@@ -80,6 +82,7 @@ export default function MainTabs() {
   const { unreadCount } = useChat();
   const isBuyer = user?.role === 'BUYER';
   const isSeller = user?.role === 'SELLER';
+  const isDelivery = user?.role === 'DELIVERY';
 
   return (
     <Tab.Navigator
@@ -90,7 +93,7 @@ export default function MainTabs() {
         tabBarInactiveTintColor: colors.textLight,
       })}
     >
-      <Tab.Screen name="Inicio" component={HomeCatalogStack} />
+      {!isDelivery ? <Tab.Screen name="Inicio" component={HomeCatalogStack} /> : null}
       {isBuyer ? <Tab.Screen name="Buscar" component={SearchCatalogStack} /> : null}
       {isBuyer ? <Tab.Screen name="Favoritos" component={FavoritesStack} /> : null}
       {isBuyer ? (
@@ -106,15 +109,21 @@ export default function MainTabs() {
           component={SellerProductsStack}
         />
       ) : null}
-      <Tab.Screen
-        name="Pedidos"
-        component={isSeller ? SellerOrdersStack : OrdersStack}
-      />
-      <Tab.Screen
-        name="Mensajes"
-        component={ChatStack}
-        options={{ tabBarBadge: unreadCount > 0 ? unreadCount : undefined }}
-      />
+      {isDelivery ? (
+        <Tab.Screen name="Delivery" component={DeliveryOrdersStack} />
+      ) : (
+        <Tab.Screen
+          name="Pedidos"
+          component={isSeller ? SellerOrdersStack : OrdersStack}
+        />
+      )}
+      {!isDelivery ? (
+        <Tab.Screen
+          name="Mensajes"
+          component={ChatStack}
+          options={{ tabBarBadge: unreadCount > 0 ? unreadCount : undefined }}
+        />
+      ) : null}
       <Tab.Screen
         name="Perfil"
         component={ProfileStack}
@@ -241,6 +250,7 @@ function HomeCatalogStack() {
       <Stack.Screen name="SellerStore" component={SellerStoreScreen} />
       <Stack.Screen name="CreateProduct" component={CreateProductScreen} />
       <Stack.Screen name="EditProduct" component={EditProductScreen} />
+      <Stack.Screen name="Wallet" component={WalletScreen} />
     </Stack.Navigator>
   );
 }
@@ -308,6 +318,14 @@ function SellerOrdersStack() {
   );
 }
 
+function DeliveryOrdersStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="DeliveryOrders" component={DeliveryOrdersScreen} />
+    </Stack.Navigator>
+  );
+}
+
 function ChatStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -330,6 +348,7 @@ function ProfileStack() {
       <Stack.Screen name="SellerStore" component={SellerStoreScreen} />
       <Stack.Screen name="CreateProduct" component={CreateProductScreen} />
       <Stack.Screen name="EditProduct" component={EditProductScreen} />
+      <Stack.Screen name="Wallet" component={WalletScreen} />
     </Stack.Navigator>
   );
 }

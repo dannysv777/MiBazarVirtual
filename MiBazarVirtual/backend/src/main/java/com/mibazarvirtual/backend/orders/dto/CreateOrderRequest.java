@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record CreateOrderRequest(
-        @NotNull Long storeId,
+        Long storeId,
         @NotNull Order.DeliveryType deliveryType,
         @Size(max = 255) String deliveryAddress,
         String notes,

@@ -326,6 +326,12 @@ export default function ProfileScreen({ navigation }) {
                   iconColor={colors.error}
                   onPress={() => navigation.navigate('Favorites')}
                 />
+                <MenuRow
+                  icon="card-outline"
+                  label="Mi billetera"
+                  iconColor={colors.primary}
+                  onPress={() => navigation.navigate('Wallet')}
+                />
               </>
             ) : null}
             <MenuRow icon="chatbubble-outline" label="Mis conversaciones" onPress={() => navigation.navigate('Mensajes')} />
@@ -337,6 +343,12 @@ export default function ProfileScreen({ navigation }) {
                   icon="storefront-outline"
                   label="Mi tienda"
                   onPress={() => navigation.navigate('SellerStore', { storeId: user?.storeId ?? profile?.storeId ?? myStore?.id })}
+                />
+                <MenuRow
+                  icon="business-outline"
+                  label="Mi cuenta bancaria"
+                  iconColor={colors.primary}
+                  onPress={() => navigation.navigate('Wallet')}
                 />
                 <MenuRow
                   icon="receipt-outline"

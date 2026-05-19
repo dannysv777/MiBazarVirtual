@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
 
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
@@ -9,16 +8,22 @@ import { useToast } from './ToastContext';
 export const CartContext = createContext(null);
 
 const CART_STORAGE_KEY = 'cart_items';
+const DELIVERY_FEE = 15;
 
 const getCartStorageKey = (userId) => `${CART_STORAGE_KEY}_${userId}`;
 
 const getProductImage = (product) => (
-  product.imageUrl ?? product.coverImage ?? product.mainImageUrl ?? product.images?.[0]?.url ?? null
+  product?.imageUrl
+  ?? product?.coverImage
+  ?? product?.mainImageUrl
+  ?? product?.productImageUrl
+  ?? product?.images?.[0]?.url
+  ?? null
 );
 
 const getProductStore = (product) => ({
-  id: product.store?.id ?? product.storeId,
-  name: product.store?.name ?? product.storeName ?? 'Tienda',
+  id: product?.store?.id ?? product?.storeId ?? null,
+  name: product?.store?.name ?? product?.storeName ?? 'Tienda',
 });
 
 const normalizeProduct = (product, quantity) => {
@@ -30,17 +35,24 @@ const normalizeProduct = (product, quantity) => {
     price: Number(product.price ?? 0),
     unit: product.unit ?? 'UNIDAD',
     imageUrl: getProductImage(product),
-    store,
     quantity,
+    storeId: store.id,
+    storeName: store.name,
   };
 };
+
+const normalizeStoredItem = (item) => ({
+  ...item,
+  storeId: item.storeId ?? item.store?.id ?? null,
+  storeName: item.storeName ?? item.store?.name ?? 'Tienda',
+  price: Number(item.price ?? 0),
+  quantity: Number(item.quantity ?? 1),
+});
 
 export function CartProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
   const { showSuccess } = useToast();
   const [items, setItems] = useState([]);
-  const [cartStoreId, setCartStoreId] = useState(null);
-  const [cartStoreName, setCartStoreName] = useState(null);
   const [cartPulseKey, setCartPulseKey] = useState(0);
   const storageKey = isAuthenticated && user?.id ? getCartStorageKey(user.id) : null;
 
@@ -48,8 +60,6 @@ export function CartProvider({ children }) {
     const loadCart = async () => {
       if (!storageKey) {
         setItems([]);
-        setCartStoreId(null);
-        setCartStoreName(null);
         return;
       }
 
@@ -58,21 +68,15 @@ export function CartProvider({ children }) {
 
       if (!storedItems) {
         setItems([]);
-        setCartStoreId(null);
-        setCartStoreName(null);
         return;
       }
 
       try {
         const parsedItems = JSON.parse(storedItems);
-        setItems(parsedItems);
-        setCartStoreId(parsedItems[0]?.store?.id ?? null);
-        setCartStoreName(parsedItems[0]?.store?.name ?? null);
+        setItems(Array.isArray(parsedItems) ? parsedItems.map(normalizeStoredItem) : []);
       } catch (error) {
         await AsyncStorage.removeItem(storageKey);
         setItems([]);
-        setCartStoreId(null);
-        setCartStoreName(null);
       }
     };
 
@@ -81,8 +85,6 @@ export function CartProvider({ children }) {
 
   const persist = useCallback(async (nextItems) => {
     setItems(nextItems);
-    setCartStoreId(nextItems[0]?.store?.id ?? null);
-    setCartStoreName(nextItems[0]?.store?.name ?? null);
 
     if (!storageKey) {
       return;
@@ -96,7 +98,7 @@ export function CartProvider({ children }) {
     await AsyncStorage.setItem(storageKey, JSON.stringify(nextItems));
   }, [storageKey]);
 
-  const addToExistingCart = async (product, quantity, options = {}) => {
+  const addItem = useCallback(async (product, quantity = 1, options = {}) => {
     const normalized = normalizeProduct(product, quantity);
     const nextItems = items.some((item) => item.id === normalized.id)
       ? items.map((item) => (
@@ -109,48 +111,43 @@ export function CartProvider({ children }) {
     await persist(nextItems);
     setCartPulseKey((current) => current + 1);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!options.silent) {
-      showSuccess(`"${normalized.name}" agregado al carrito`);
-    }
-  };
 
-  const clearAndAdd = async (product, quantity, options = {}) => {
-    const normalized = normalizeProduct(product, quantity);
-    await persist([normalized]);
+    if (!options.silent) {
+      showSuccess('Agregado al carrito');
+    }
+  }, [items, persist, showSuccess]);
+
+  const addItems = useCallback(async (products, options = {}) => {
+    const nextItems = [...items];
+
+    products.forEach(({ product, quantity = 1 }) => {
+      const normalized = normalizeProduct(product, quantity);
+      const existingIndex = nextItems.findIndex((item) => item.id === normalized.id);
+
+      if (existingIndex >= 0) {
+        nextItems[existingIndex] = {
+          ...nextItems[existingIndex],
+          quantity: nextItems[existingIndex].quantity + quantity,
+        };
+      } else {
+        nextItems.push(normalized);
+      }
+    });
+
+    await persist(nextItems);
     setCartPulseKey((current) => current + 1);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     if (!options.silent) {
-      showSuccess(`"${normalized.name}" agregado al carrito`);
+      showSuccess('Productos agregados al carrito');
     }
-  };
+  }, [items, persist, showSuccess]);
 
-  const addItem = (product, quantity = 1, options = {}) => {
-    const store = getProductStore(product);
-
-    if (items.length === 0 || store.id === cartStoreId) {
-      addToExistingCart(product, quantity, options);
-      return;
-    }
-
-    Alert.alert(
-      '¿Cambiar tienda?',
-      `Tienes productos de ${cartStoreName} en tu carrito. ¿Deseas vaciarlo y agregar este producto?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Vaciar y agregar',
-          style: 'destructive',
-          onPress: () => clearAndAdd(product, quantity),
-        },
-      ]
-    );
-  };
-
-  const removeItem = async (productId) => {
+  const removeItem = useCallback(async (productId) => {
     await persist(items.filter((item) => item.id !== productId));
-  };
+  }, [items, persist]);
 
-  const updateQuantity = async (productId, qty) => {
+  const updateQuantity = useCallback(async (productId, qty) => {
     if (qty <= 0) {
       await removeItem(productId);
       return;
@@ -159,22 +156,37 @@ export function CartProvider({ children }) {
     await persist(items.map((item) => (
       item.id === productId ? { ...item, quantity: qty } : item
     )));
-  };
+  }, [items, persist, removeItem]);
 
-  const clearCart = async () => {
+  const clearCart = useCallback(async () => {
     await persist([]);
-  };
+  }, [persist]);
 
   const value = useMemo(() => {
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const total = (deliveryType) => subtotal + (deliveryType === 'DELIVERY' ? 15 : 0);
+    const grouped = items.reduce((groups, item) => {
+      const key = String(item.storeId ?? 'unknown');
+      const currentGroup = groups.get(key) ?? {
+        storeId: item.storeId,
+        storeName: item.storeName ?? 'Tienda',
+        items: [],
+        storeSubtotal: 0,
+      };
+
+      currentGroup.items.push(item);
+      currentGroup.storeSubtotal += item.price * item.quantity;
+      groups.set(key, currentGroup);
+      return groups;
+    }, new Map());
+    const itemsByStore = Array.from(grouped.values());
+    const total = (deliveryType) => subtotal + (deliveryType === 'DELIVERY' ? DELIVERY_FEE : 0);
 
     return {
       items,
-      cartStoreId,
-      cartStoreName,
+      itemsByStore,
       addItem,
+      addItems,
       removeItem,
       updateQuantity,
       clearCart,
@@ -183,7 +195,7 @@ export function CartProvider({ children }) {
       total,
       cartPulseKey,
     };
-  }, [cartPulseKey, cartStoreId, cartStoreName, items, storageKey]);
+  }, [addItem, addItems, cartPulseKey, clearCart, items, removeItem, updateQuantity]);
 
   return (
     <CartContext.Provider value={value}>

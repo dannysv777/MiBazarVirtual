@@ -36,6 +36,10 @@ public class OrderItem {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
+
     @Column(name = "product_name", nullable = false, length = 150)
     private String productName;
 
@@ -51,4 +55,15 @@ public class OrderItem {
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal subtotal;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "item_status", nullable = false, length = 20)
+    private ItemStatus itemStatus = ItemStatus.PENDING;
+
+    @Column(name = "vendor_note", length = 255)
+    private String vendorNote;
+
+    public enum ItemStatus {
+        PENDING, CONFIRMED, REJECTED
+    }
 }

@@ -19,6 +19,11 @@ const notifyNetworkStatus = (isOnline) => {
 };
 
 axiosInstance.interceptors.request.use(async (config) => {
+  const isAuthRequest = config.url?.startsWith('/api/auth/');
+  if (isAuthRequest) {
+    return config;
+  }
+
   const accessToken = await AsyncStorage.getItem('accessToken');
 
   if (accessToken) {

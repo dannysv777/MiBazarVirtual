@@ -1,117 +1,134 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppButton from '../../components/common/AppButton';
+import AppBadge from '../../components/common/AppBadge';
 import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { formatPrice } from '../../utils/formatters';
 import { scale } from '../../utils/responsive';
 
-const statusLabels = {
-  PENDING: 'Pendiente de confirmacion',
-  CONFIRMED: 'Confirmado',
-  IN_PROGRESS: 'En camino',
-  DELIVERED: 'Entregado',
-  CANCELLED: 'Cancelado',
+const typeLabels = {
+  DELIVERY: 'Delivery',
+  PICKUP: 'Recoger',
 };
 
 export default function OrderConfirmationScreen({ navigation, route }) {
   const order = route.params?.order;
-  const deliveryType = order?.deliveryType === 'PICKUP' ? 'Recoger en tienda' : 'Entrega a domicilio';
-  const status = statusLabels[order?.status] ?? 'Pedido recibido';
+  const checkScale = useRef(new Animated.Value(0)).current;
+
+  const summary = useMemo(() => {
+    const items = order?.items ?? [];
+    const productCount = items.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
+    const storeIds = new Set(items.map((item) => item.storeId ?? item.storeName).filter(Boolean));
+
+    return {
+      productCount,
+      storeCount: storeIds.size || (order?.storeId ? 1 : 0),
+    };
+  }, [order]);
+
+  useEffect(() => {
+    Animated.spring(checkScale, {
+      toValue: 1,
+      friction: 5,
+      tension: 90,
+      useNativeDriver: true,
+    }).start();
+  }, [checkScale]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <View style={styles.successCircle}>
-            <Ionicons name="checkmark" size={38} color={colors.surface} />
-          </View>
-          <Text style={styles.title}>Pedido confirmado</Text>
-          <Text style={styles.subtitle}>La tienda recibio tu pedido y podras seguir su estado desde Pedidos.</Text>
+          <Animated.View style={[styles.successCircle, { transform: [{ scale: checkScale }] }]}>
+            <Ionicons name="checkmark" size={44} color={colors.surface} />
+          </Animated.View>
+          <Text style={styles.title}>Pedido realizado</Text>
+          <Text style={styles.subtitle}>Tu pedido fue enviado a los vendedores.</Text>
         </View>
 
-        <View style={styles.ticket}>
-          <View style={styles.ticketHeader}>
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryHeader}>
             <View>
               <Text style={styles.metaLabel}>Numero de pedido</Text>
-              <Text style={styles.orderNumber}>#{order?.id ?? '---'}</Text>
+              <Text style={styles.orderNumber}>Pedido #{order?.id ?? '---'}</Text>
             </View>
-            <View style={styles.statusPill}>
-              <Text style={styles.statusText}>{status}</Text>
-            </View>
+            <AppBadge label={typeLabels[order?.deliveryType] ?? 'Delivery'} variant="accent" />
           </View>
 
           <View style={styles.divider} />
 
-          <InfoRow icon="storefront-outline" label="Tienda" value={order?.storeName ?? 'Tienda'} />
-          <InfoRow icon="bicycle-outline" label="Entrega" value={deliveryType} />
+          <SummaryRow
+            icon="basket-outline"
+            label="Productos"
+            value={`${summary.productCount} productos de ${summary.storeCount} vendedores`}
+          />
+          <SummaryRow
+            icon="cash-outline"
+            label="Total"
+            value={formatPrice(order?.total ?? 0)}
+            strong
+          />
           {order?.deliveryAddress ? (
-            <InfoRow icon="location-outline" label="Direccion" value={order.deliveryAddress} />
+            <SummaryRow icon="location-outline" label="Direccion" value={order.deliveryAddress} />
           ) : null}
-          {order?.notes ? <InfoRow icon="reader-outline" label="Nota" value={order.notes} /> : null}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Resumen</Text>
-          {(order?.items ?? []).map((item) => (
-            <View key={`${item.productId}-${item.productName}`} style={styles.itemRow}>
-              <View style={styles.itemQty}>
-                <Text style={styles.itemQtyText}>{item.quantity}</Text>
-              </View>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName} numberOfLines={1}>{item.productName}</Text>
-                <Text style={styles.itemUnit}>{formatPrice(item.unitPrice)} c/u</Text>
-              </View>
-              <Text style={styles.itemTotal}>{formatPrice(item.subtotal)}</Text>
-            </View>
-          ))}
-
-          <View style={styles.divider} />
-          <SummaryRow label="Subtotal" value={formatPrice(order?.subtotal ?? 0)} />
-          <SummaryRow label="Envio" value={formatPrice(order?.deliveryFee ?? 0)} />
-          <SummaryRow label="Total" value={formatPrice(order?.total ?? 0)} strong />
+        <View style={styles.nextCard}>
+          <Text style={styles.cardTitle}>Que pasa ahora</Text>
+          <StepRow number="1" icon="storefront-outline" text="Los vendedores confirmaran tus productos" />
+          <StepRow number="2" icon="bicycle-outline" text="Un repartidor recogera tu pedido" />
+          <StepRow number="3" icon="cube-outline" text="Recibiras tu pedido en tu direccion" />
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <AppButton
-          title="Ver detalle del pedido"
+          title="Ver mi pedido"
           onPress={() => navigation.replace('OrderDetail', { orderId: order?.id })}
           fullWidth
           disabled={!order?.id}
         />
         <TouchableOpacity
           activeOpacity={0.75}
-          onPress={() => navigation.navigate('Inicio', { screen: 'Home' })}
+          onPress={() => navigation.navigate('Inicio')}
           style={styles.secondaryAction}
         >
-          <Text style={styles.secondaryText}>Volver al inicio</Text>
+          <Text style={styles.secondaryText}>Seguir comprando</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
-function InfoRow({ icon, label, value }) {
+function SummaryRow({ icon, label, value, strong = false }) {
   return (
     <View style={styles.infoRow}>
-      <Ionicons name={icon} size={20} color={colors.primary} />
+      <View style={styles.infoIcon}>
+        <Ionicons name={icon} size={18} color={colors.primary} />
+      </View>
       <View style={styles.infoText}>
         <Text style={styles.metaLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value}</Text>
+        <Text style={[styles.infoValue, strong && styles.strongValue]}>{value}</Text>
       </View>
     </View>
   );
 }
 
-function SummaryRow({ label, value, strong = false }) {
+function StepRow({ number, icon, text }) {
   return (
-    <View style={styles.summaryRow}>
-      <Text style={[styles.summaryLabel, strong && styles.summaryStrong]}>{label}</Text>
-      <Text style={[styles.summaryValue, strong && styles.summaryTotal]}>{value}</Text>
+    <View style={styles.stepRow}>
+      <View style={styles.stepNumber}>
+        <Text style={styles.stepNumberText}>{number}</Text>
+      </View>
+      <View style={styles.stepIcon}>
+        <Ionicons name={icon} size={19} color={colors.secondary} />
+      </View>
+      <Text style={styles.stepText}>{text}</Text>
     </View>
   );
 }
@@ -119,7 +136,7 @@ function SummaryRow({ label, value, strong = false }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   content: {
     padding: spacing.md,
@@ -127,14 +144,14 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.xl,
   },
   successCircle: {
-    width: scale(72),
-    height: scale(72),
+    width: scale(80),
+    height: scale(80),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: scale(36),
+    borderRadius: scale(40),
     backgroundColor: colors.success,
     marginBottom: spacing.md,
   },
@@ -148,13 +165,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
   },
-  ticket: {
+  summaryCard: {
     padding: spacing.md,
     borderRadius: 12,
     backgroundColor: colors.surface,
     ...shadows.card,
   },
-  ticketHeader: {
+  summaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -169,17 +186,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: 2,
   },
-  statusPill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 14,
-    backgroundColor: colors.primaryLight,
-  },
-  statusText: {
-    ...typography.tiny,
-    color: colors.primary,
-    fontWeight: '800',
-  },
   divider: {
     height: 1,
     backgroundColor: colors.border,
@@ -187,8 +193,17 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'center',
     marginBottom: spacing.md,
+  },
+  infoIcon: {
+    width: scale(36),
+    height: scale(36),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: scale(18),
+    backgroundColor: colors.primaryLight,
+    marginRight: spacing.sm,
   },
   infoText: {
     flex: 1,
@@ -197,68 +212,46 @@ const styles = StyleSheet.create({
     ...typography.bodyBold,
     marginTop: 2,
   },
-  card: {
+  strongValue: {
+    color: colors.primary,
+  },
+  nextCard: {
     marginTop: spacing.md,
     padding: spacing.md,
     borderRadius: 12,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    backgroundColor: colors.background,
   },
   cardTitle: {
     ...typography.bodyBold,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  itemRow: {
+  stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  itemQty: {
-    width: 30,
-    height: 30,
+  stepNumber: {
+    width: scale(26),
+    height: scale(26),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 15,
-    backgroundColor: colors.background,
-    marginRight: spacing.sm,
+    borderRadius: scale(13),
+    backgroundColor: colors.secondary,
   },
-  itemQtyText: {
+  stepNumberText: {
     ...typography.tiny,
+    color: colors.surface,
     fontWeight: '800',
   },
-  itemInfo: {
-    flex: 1,
+  stepIcon: {
+    width: scale(34),
+    alignItems: 'center',
+    marginLeft: spacing.sm,
   },
-  itemName: {
-    ...typography.bodyBold,
-  },
-  itemUnit: {
-    ...typography.tiny,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  itemTotal: {
-    ...typography.bodyBold,
-    color: colors.primary,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  summaryLabel: {
+  stepText: {
     ...typography.body,
-    color: colors.textSecondary,
-  },
-  summaryValue: {
-    ...typography.bodyBold,
-  },
-  summaryStrong: {
+    flex: 1,
     color: colors.textPrimary,
-    fontWeight: '800',
-  },
-  summaryTotal: {
-    ...typography.price,
   },
   footer: {
     position: 'absolute',

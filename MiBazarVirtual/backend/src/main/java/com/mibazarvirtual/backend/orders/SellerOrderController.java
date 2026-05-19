@@ -55,4 +55,24 @@ public class SellerOrderController {
                 "Order status updated"
         ));
     }
+
+    @PatchMapping("/{orderId}/items/{itemId}/confirm")
+    public ResponseEntity<ApiResponse<OrderResponse>> confirmItem(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody ConfirmItemRequest request,
+            Authentication authentication
+    ) {
+        Long sellerId = authenticatedUserResolver.currentUserId(authentication);
+        return ResponseEntity.ok(ApiResponse.ok(
+                orderService.confirmItem(orderId, itemId, sellerId, request.available(), request.note()),
+                "Order item updated"
+        ));
+    }
+
+    public record ConfirmItemRequest(
+            boolean available,
+            String note
+    ) {
+    }
 }

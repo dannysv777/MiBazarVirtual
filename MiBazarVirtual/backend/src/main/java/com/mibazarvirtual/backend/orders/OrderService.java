@@ -21,10 +21,13 @@ import com.mibazarvirtual.backend.repository.OrderRepository;
 import com.mibazarvirtual.backend.repository.ProductRepository;
 import com.mibazarvirtual.backend.repository.StoreRepository;
 import com.mibazarvirtual.backend.repository.UserRepository;
+import com.mibazarvirtual.backend.wallet.WalletService;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -46,23 +49,13 @@ public class OrderService {
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final WalletService walletService;
 
     @Transactional
     public OrderResponse createOrder(Long buyerId, CreateOrderRequest request) {
-        Store store = storeRepository.findById(request.storeId())
-                .orElseThrow(() -> new StoreNotFoundException(request.storeId()));
-        if (store.getUser().getId().equals(buyerId)) {
-            throw new AccessDeniedException("Buyer cannot order from their own store");
-        }
-        if (store.getStatus() != Store.Status.ACTIVE) {
-            throw new IllegalArgumentException("Store is not active");
-        }
         if (request.deliveryType() == Order.DeliveryType.DELIVERY
                 && (request.deliveryAddress() == null || request.deliveryAddress().isBlank())) {
             throw new IllegalArgumentException("deliveryAddress is required for DELIVERY orders");
-        }
-        if (orderRepository.existsByBuyerIdAndStoreIdAndStatus(buyerId, store.getId(), Order.Status.PENDING)) {
-            throw new IllegalStateException("Buyer already has a pending order for this store");
         }
 
         Map<Long, Integer> quantitiesByProduct = aggregateQuantities(request.items());
@@ -73,19 +66,18 @@ public class OrderService {
             Product product = productRepository.findLockedById(entry.getKey())
                     .orElseThrow(() -> new ProductNotFoundException(entry.getKey()));
             int requestedQuantity = entry.getValue();
-            validateProductForOrder(product, store.getId(), requestedQuantity);
+            validateProductForOrder(product, buyerId, requestedQuantity);
             products.put(product, requestedQuantity);
             subtotal = subtotal.add(product.getPrice().multiply(BigDecimal.valueOf(requestedQuantity)));
         }
 
         BigDecimal deliveryFee = request.deliveryType() == Order.DeliveryType.DELIVERY ? DELIVERY_FEE : BigDecimal.ZERO;
-
         User buyer = userRepository.findById(buyerId)
                 .orElseThrow(() -> new AccessDeniedException("Authenticated buyer was not found"));
 
         Order order = new Order();
         order.setBuyer(buyer);
-        order.setStore(store);
+        order.setStore(resolveLegacySingleStore(products));
         order.setStatus(Order.Status.PENDING);
         order.setDeliveryType(request.deliveryType());
         order.setDeliveryAddress(request.deliveryType() == Order.DeliveryType.DELIVERY ? request.deliveryAddress().trim() : null);
@@ -107,8 +99,12 @@ public class OrderService {
         });
 
         List<OrderItem> savedItems = orderItemRepository.saveAll(items);
-        notificationService.notifyNewOrderReceived(savedOrder);
-        log.info("Created order {} for buyer {} and store {}", savedOrder.getId(), buyerId, store.getId());
+        savedItems.stream()
+                .filter(item -> item.getStore() != null)
+                .collect(Collectors.groupingBy(OrderItem::getStore, LinkedHashMap::new, Collectors.counting()))
+                .forEach((store, itemCount) -> notificationService.notifyNewOrderReceived(savedOrder, store, itemCount));
+        walletService.createPaymentRecord(savedOrder.getId(), savedOrder.getTotal(), "CASH_ON_DELIVERY");
+        log.info("Created multi-vendor order {} for buyer {}", savedOrder.getId(), buyerId);
         return OrderResponse.from(savedOrder, savedItems);
     }
 
@@ -129,17 +125,14 @@ public class OrderService {
     public OrderResponse cancelBuyerOrder(Long orderId, Long buyerId) {
         Order order = orderRepository.findByIdAndBuyerId(orderId, buyerId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
-        if (order.getStatus() != Order.Status.PENDING) {
+        if (order.getStatus() != Order.Status.PENDING && order.getStatus() != Order.Status.PARTIALLY_CONFIRMED) {
             throw new CannotCancelOrderException();
         }
 
         List<OrderItem> items = orderItemRepository.findByOrderIdOrderByIdAsc(order.getId());
         for (OrderItem item : items) {
-            Product product = productRepository.findLockedById(item.getProduct().getId())
-                    .orElseThrow(() -> new ProductNotFoundException(item.getProduct().getId()));
-            product.setStock(product.getStock() + item.getQuantity());
-            if (product.getStatus() == Product.Status.OUT_OF_STOCK && product.getStock() > 0) {
-                product.setStatus(Product.Status.ACTIVE);
+            if (item.getItemStatus() != OrderItem.ItemStatus.REJECTED) {
+                restoreStock(item);
             }
         }
 
@@ -154,22 +147,101 @@ public class OrderService {
         Store store = storeRepository.findByUserId(sellerId)
                 .orElseThrow(() -> new StoreNotFoundException(sellerId));
         Page<Order> orders = status == null
-                ? orderRepository.findByStoreIdOrderByCreatedAtDesc(store.getId(), pageable)
-                : orderRepository.findByStoreIdAndStatusOrderByCreatedAtDesc(store.getId(), status, pageable);
-        return orders.map(this::toResponse);
+                ? orderRepository.findSellerOrders(store.getId(), pageable)
+                : orderRepository.findSellerOrdersByStatus(store.getId(), status, pageable);
+        return orders.map(order -> OrderResponse.from(
+                order,
+                orderItemRepository.findByOrderIdAndStoreIdOrderByIdAsc(order.getId(), store.getId())
+        ));
+    }
+
+    @Transactional
+    public OrderResponse confirmItem(Long orderId, Long itemId, Long sellerId, boolean available, String note) {
+        Store sellerStore = storeRepository.findByUserId(sellerId)
+                .orElseThrow(() -> new StoreNotFoundException(sellerId));
+        OrderItem item = orderItemRepository.findDetailedByOrderIdAndItemId(orderId, itemId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        if (!item.getStore().getId().equals(sellerStore.getId())) {
+            throw new AccessDeniedException("Seller does not own this order item");
+        }
+        if (item.getOrder().getStatus() == Order.Status.CANCELLED || item.getOrder().getStatus() == Order.Status.DELIVERED) {
+            throw new InvalidOrderStatusTransitionException(item.getOrder().getStatus(), item.getOrder().getStatus());
+        }
+        if (item.getItemStatus() != OrderItem.ItemStatus.PENDING) {
+            return OrderResponse.from(item.getOrder(), orderItemRepository.findByOrderIdAndStoreIdOrderByIdAsc(orderId, sellerStore.getId()));
+        }
+
+        item.setItemStatus(available ? OrderItem.ItemStatus.CONFIRMED : OrderItem.ItemStatus.REJECTED);
+        item.setVendorNote(note == null || note.isBlank() ? null : note.trim());
+
+        if (!available) {
+            restoreStock(item);
+            notificationService.notifyItemRejected(item.getOrder().getBuyer().getId(), item.getProductName());
+        }
+
+        recalculateOrderAfterVendorResponse(item.getOrder());
+        log.info("Seller {} marked order {} item {} as {}", sellerId, orderId, itemId, item.getItemStatus());
+        return OrderResponse.from(item.getOrder(), orderItemRepository.findByOrderIdAndStoreIdOrderByIdAsc(orderId, sellerStore.getId()));
     }
 
     @Transactional
     public OrderResponse updateSellerOrderStatus(Long sellerId, Long orderId, Order.Status nextStatus) {
+        if (nextStatus == Order.Status.CONFIRMED) {
+            Store store = storeRepository.findByUserId(sellerId)
+                    .orElseThrow(() -> new StoreNotFoundException(sellerId));
+            List<OrderItem> items = orderItemRepository.findByOrderIdAndStoreIdOrderByIdAsc(orderId, store.getId());
+            for (OrderItem item : items) {
+                if (item.getItemStatus() == OrderItem.ItemStatus.PENDING) {
+                    confirmItem(orderId, item.getId(), sellerId, true, null);
+                }
+            }
+            Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException(orderId));
+            return OrderResponse.from(order, orderItemRepository.findByOrderIdAndStoreIdOrderByIdAsc(orderId, store.getId()));
+        }
+        throw new InvalidOrderStatusTransitionException(Order.Status.CONFIRMED, nextStatus);
+    }
+
+    @Transactional
+    public OrderResponse acceptOrder(Long orderId, Long deliveryWorkerId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
-        if (!order.getStore().getUser().getId().equals(sellerId)) {
-            throw new AccessDeniedException("Seller does not own this order");
+        User deliveryWorker = userRepository.findById(deliveryWorkerId)
+                .orElseThrow(() -> new AccessDeniedException("Delivery worker was not found"));
+        if (deliveryWorker.getRole() != User.Role.DELIVERY) {
+            throw new AccessDeniedException("Only delivery users can accept orders");
         }
-        validateStatusTransition(order.getStatus(), nextStatus);
-        order.setStatus(nextStatus);
-        notifyBuyerForStatus(order, nextStatus);
-        log.info("Updated order {} status to {}", orderId, nextStatus);
+        if (order.getStatus() != Order.Status.CONFIRMED) {
+            throw new InvalidOrderStatusTransitionException(order.getStatus(), Order.Status.READY_FOR_PICKUP);
+        }
+
+        order.setDeliveryWorker(deliveryWorker);
+        order.setDeliveryAcceptedAt(LocalDateTime.now());
+        order.setStatus(Order.Status.READY_FOR_PICKUP);
+        notificationService.notifyDeliveryAccepted(order);
+        log.info("Delivery worker {} accepted order {}", deliveryWorkerId, orderId);
+        return toResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse markInProgress(Long orderId, Long deliveryWorkerId) {
+        Order order = findDeliveryOrder(orderId, deliveryWorkerId);
+        if (order.getStatus() != Order.Status.READY_FOR_PICKUP) {
+            throw new InvalidOrderStatusTransitionException(order.getStatus(), Order.Status.IN_PROGRESS);
+        }
+        order.setStatus(Order.Status.IN_PROGRESS);
+        notificationService.notifyOrderInProgress(order);
+        return toResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse markDelivered(Long orderId, Long deliveryWorkerId) {
+        Order order = findDeliveryOrder(orderId, deliveryWorkerId);
+        if (order.getStatus() != Order.Status.IN_PROGRESS) {
+            throw new InvalidOrderStatusTransitionException(order.getStatus(), Order.Status.DELIVERED);
+        }
+        order.setStatus(Order.Status.DELIVERED);
+        notificationService.notifyOrderDelivered(order);
         return toResponse(order);
     }
 
@@ -177,11 +249,11 @@ public class OrderService {
     public Page<OrderResponse> getAdminOrders(Order.Status status, Long storeId, Pageable pageable) {
         Page<Order> orders;
         if (status != null && storeId != null) {
-            orders = orderRepository.findByStoreIdAndStatusOrderByCreatedAtDesc(storeId, status, pageable);
+            orders = orderRepository.findSellerOrdersByStatus(storeId, status, pageable);
         } else if (status != null) {
             orders = orderRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
         } else if (storeId != null) {
-            orders = orderRepository.findByStoreIdOrderByCreatedAtDesc(storeId, pageable);
+            orders = orderRepository.findSellerOrders(storeId, pageable);
         } else {
             orders = orderRepository.findAllByOrderByCreatedAtDesc(pageable);
         }
@@ -196,9 +268,20 @@ public class OrderService {
         return quantitiesByProduct;
     }
 
-    private void validateProductForOrder(Product product, Long storeId, int requestedQuantity) {
-        if (!product.getStore().getId().equals(storeId)) {
-            throw new IllegalArgumentException("Product " + product.getId() + " does not belong to the selected store");
+    private Store resolveLegacySingleStore(Map<Product, Integer> products) {
+        List<Long> storeIds = products.keySet().stream()
+                .map(product -> product.getStore().getId())
+                .distinct()
+                .toList();
+        return storeIds.size() == 1 ? products.keySet().iterator().next().getStore() : null;
+    }
+
+    private void validateProductForOrder(Product product, Long buyerId, int requestedQuantity) {
+        if (product.getStore().getUser().getId().equals(buyerId)) {
+            throw new AccessDeniedException("Buyer cannot order from their own store");
+        }
+        if (product.getStore().getStatus() != Store.Status.ACTIVE) {
+            throw new IllegalArgumentException("Store is not active");
         }
         if (product.getStatus() != Product.Status.ACTIVE) {
             throw new IllegalArgumentException("Product '" + product.getName() + "' is not available");
@@ -212,35 +295,79 @@ public class OrderService {
         OrderItem item = new OrderItem();
         item.setOrder(order);
         item.setProduct(product);
+        item.setStore(product.getStore());
         item.setProductName(product.getName());
         item.setUnit(product.getUnit());
         item.setQuantity(quantity);
         item.setUnitPrice(product.getPrice());
         item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(quantity)));
+        item.setItemStatus(OrderItem.ItemStatus.PENDING);
         return item;
     }
 
-    private void validateStatusTransition(Order.Status currentStatus, Order.Status nextStatus) {
-        if (nextStatus == Order.Status.CANCELLED
-                || currentStatus == Order.Status.CANCELLED
-                || currentStatus == Order.Status.DELIVERED
-                || nextStatus.ordinal() != currentStatus.ordinal() + 1) {
-            throw new InvalidOrderStatusTransitionException(currentStatus, nextStatus);
+    private void recalculateOrderAfterVendorResponse(Order order) {
+        List<OrderItem> items = orderItemRepository.findByOrderIdOrderByIdAsc(order.getId());
+        long pendingCount = items.stream().filter(item -> item.getItemStatus() == OrderItem.ItemStatus.PENDING).count();
+        long confirmedCount = items.stream().filter(item -> item.getItemStatus() == OrderItem.ItemStatus.CONFIRMED).count();
+        long rejectedCount = items.stream().filter(item -> item.getItemStatus() == OrderItem.ItemStatus.REJECTED).count();
+
+        if (confirmedCount == 0 && rejectedCount == items.size()) {
+            order.setSubtotal(BigDecimal.ZERO);
+            order.setDeliveryFee(BigDecimal.ZERO);
+            order.setTotal(BigDecimal.ZERO);
+            order.setStatus(Order.Status.CANCELLED);
+            notificationService.notifyOrderCancelled(order, "Todos los productos fueron rechazados");
+            return;
+        }
+
+        if (pendingCount == 0 && confirmedCount > 0) {
+            updateOrderTotalsFromConfirmedItems(order, items);
+            order.setStatus(Order.Status.CONFIRMED);
+            notificationService.notifyOrderConfirmed(order);
+            if (rejectedCount > 0) {
+                notificationService.notifyItemRejected(order.getBuyer().getId(), rejectedCount + " producto(s) de tu pedido");
+            }
+            notificationService.notifyDeliveryAvailable(order);
+            return;
+        }
+
+        if (confirmedCount > 0 || rejectedCount > 0) {
+            order.setStatus(Order.Status.PARTIALLY_CONFIRMED);
+        } else {
+            order.setStatus(Order.Status.PENDING);
+        }
+    }
+
+    private void updateOrderTotalsFromConfirmedItems(Order order, List<OrderItem> items) {
+        BigDecimal subtotal = items.stream()
+                .filter(item -> item.getItemStatus() == OrderItem.ItemStatus.CONFIRMED)
+                .map(OrderItem::getSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal deliveryFee = order.getDeliveryType() == Order.DeliveryType.DELIVERY ? DELIVERY_FEE : BigDecimal.ZERO;
+        order.setSubtotal(subtotal);
+        order.setDeliveryFee(deliveryFee);
+        order.setTotal(subtotal.add(deliveryFee));
+    }
+
+    private Order findDeliveryOrder(Long orderId, Long deliveryWorkerId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        if (order.getDeliveryWorker() == null || !order.getDeliveryWorker().getId().equals(deliveryWorkerId)) {
+            throw new AccessDeniedException("Delivery worker does not own this order");
+        }
+        return order;
+    }
+
+    private void restoreStock(OrderItem item) {
+        Product product = productRepository.findLockedById(item.getProduct().getId())
+                .orElseThrow(() -> new ProductNotFoundException(item.getProduct().getId()));
+        product.setStock(product.getStock() + item.getQuantity());
+        if (product.getStatus() == Product.Status.OUT_OF_STOCK && product.getStock() > 0) {
+            product.setStatus(Product.Status.ACTIVE);
         }
     }
 
     private OrderResponse toResponse(Order order) {
         return OrderResponse.from(order, orderItemRepository.findByOrderIdOrderByIdAsc(order.getId()));
-    }
-
-    private void notifyBuyerForStatus(Order order, Order.Status nextStatus) {
-        switch (nextStatus) {
-            case CONFIRMED -> notificationService.notifyOrderConfirmed(order);
-            case IN_PROGRESS -> notificationService.notifyOrderInProgress(order);
-            case DELIVERED -> notificationService.notifyOrderDelivered(order);
-            case CANCELLED -> notificationService.notifyOrderCancelled(order, "Cancelado por la tienda");
-            default -> {
-            }
-        }
     }
 }

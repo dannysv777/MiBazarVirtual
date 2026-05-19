@@ -25,6 +25,33 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Optional<Order> findByIdAndBuyerId(Long id, Long buyerId);
 
+    Page<Order> findByDeliveryWorkerIdAndStatusInOrderByCreatedAtDesc(
+            Long deliveryWorkerId,
+            java.util.List<Order.Status> statuses,
+            Pageable pageable
+    );
+
+    @Query("""
+            select distinct oi.order
+            from OrderItem oi
+            where oi.store.id = :storeId
+            order by oi.order.createdAt desc
+            """)
+    Page<Order> findSellerOrders(@Param("storeId") Long storeId, Pageable pageable);
+
+    @Query("""
+            select distinct oi.order
+            from OrderItem oi
+            where oi.store.id = :storeId
+              and oi.order.status = :status
+            order by oi.order.createdAt desc
+            """)
+    Page<Order> findSellerOrdersByStatus(
+            @Param("storeId") Long storeId,
+            @Param("status") Order.Status status,
+            Pageable pageable
+    );
+
     @Query(value = """
             SELECT
                 COUNT(*) AS totalOrders,
@@ -34,8 +61,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                 COALESCE(SUM(CASE WHEN status = 'DELIVERED' THEN 1 ELSE 0 END), 0) AS deliveredOrders,
                 COALESCE(SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS cancelledOrders,
                 COALESCE(SUM(CASE WHEN status = 'DELIVERED' THEN total ELSE 0 END), 0) AS totalRevenue
-            FROM orders
-            WHERE store_id = :storeId
+            FROM (
+                SELECT DISTINCT o.id, o.status, o.total
+                FROM orders o
+                JOIN order_items oi ON oi.order_id = o.id
+                WHERE oi.store_id = :storeId
+            ) seller_orders
             """, nativeQuery = true)
     SellerOrderStatsProjection getSellerOrderStats(@Param("storeId") Long storeId);
 

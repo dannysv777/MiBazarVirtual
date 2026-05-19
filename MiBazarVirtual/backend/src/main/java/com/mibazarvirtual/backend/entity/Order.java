@@ -35,8 +35,8 @@ public class Order {
     @JoinColumn(name = "buyer_id", nullable = false)
     private User buyer;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "store_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
     private Store store;
 
     @Enumerated(EnumType.STRING)
@@ -76,6 +76,16 @@ public class Order {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_worker_id")
+    private User deliveryWorker;
+
+    @Column(name = "delivery_accepted_at")
+    private LocalDateTime deliveryAcceptedAt;
+
+    @Column(name = "estimated_delivery_time", length = 50)
+    private String estimatedDeliveryTime;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -85,7 +95,7 @@ public class Order {
     private LocalDateTime updatedAt;
 
     public enum Status {
-        PENDING, CONFIRMED, IN_PROGRESS, DELIVERED, CANCELLED
+        PENDING, PARTIALLY_CONFIRMED, CONFIRMED, READY_FOR_PICKUP, IN_PROGRESS, DELIVERED, CANCELLED
     }
 
     public enum DeliveryType {

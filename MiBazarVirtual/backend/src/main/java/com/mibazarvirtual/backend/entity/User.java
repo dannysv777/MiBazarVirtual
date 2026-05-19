@@ -53,6 +53,6 @@ public class User {
     private LocalDateTime updatedAt;
 
     public enum Role {
-        BUYER, SELLER, ADMIN
+        BUYER, SELLER, DELIVERY, ADMIN
     }
 }

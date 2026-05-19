@@ -42,6 +42,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
     const response = await authApi.login(email, password);
     const authData = unwrapAuthResponse(response);
 
