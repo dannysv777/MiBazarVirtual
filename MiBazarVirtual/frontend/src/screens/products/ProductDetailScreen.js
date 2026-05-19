@@ -34,7 +34,13 @@ import { hp, scale } from '../../utils/responsive';
 import { isStoreOpen } from '../../utils/storeSchedule';
 
 const getProductImage = (product) => (
-  product?.imageUrl ?? product?.mainImageUrl ?? product?.coverImage ?? product?.images?.[0]?.url ?? null
+  product?.imageUrl
+  ?? product?.mainImageUrl
+  ?? product?.coverImage
+  ?? product?.productImageUrl
+  ?? product?.image
+  ?? product?.images?.[0]?.url
+  ?? null
 );
 
 const getStore = (product) => product?.store ?? {

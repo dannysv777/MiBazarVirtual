@@ -16,9 +16,19 @@
     },
     "ios": {
       "infoPlist": {
-        "UIStatusBarStyle": "UIStatusBarStyleDarkContent"
+        "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
+        "NSCameraUsageDescription": "MiBazarVirtual usa la camara para tomar fotos de tus productos.",
+        "NSPhotoLibraryUsageDescription": "MiBazarVirtual usa tu galeria para seleccionar fotos de productos."
       }
     },
-    "plugins": []
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MiBazarVirtual usa tu galeria para seleccionar fotos de productos.",
+          "cameraPermission": "MiBazarVirtual usa la camara para tomar fotos de tus productos."
+        }
+      ]
+    ]
   }
 }

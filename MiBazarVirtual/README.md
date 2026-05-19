@@ -23,6 +23,19 @@ El backend ya esta desplegado en Railway y expone datos reales de demostracion.
 - Frontend: React Native + Expo
 - Deploy: Railway
 
+## Cloudinary
+
+El backend sube imagenes de productos a Cloudinary desde `POST /api/upload/image`.
+Configura estas variables de entorno antes de iniciar la API:
+
+```env
+CLOUDINARY_CLOUD_NAME=tu_cloud_name
+CLOUDINARY_API_KEY=tu_api_key
+CLOUDINARY_API_SECRET=tu_api_secret
+```
+
+En Railway, agrega las mismas variables en el servicio del backend. En local puedes definirlas en la terminal antes de ejecutar Spring Boot.
+
 ## Estructura
 
 ```text

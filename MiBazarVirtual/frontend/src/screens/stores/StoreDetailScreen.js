@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import EmptyState from '../../components/common/EmptyState';
+import AppImage from '../../components/common/AppImage';
 import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
@@ -113,6 +114,12 @@ export default function StoreDetailScreen({ navigation, route }) {
     <SafeAreaView style={styles.safeArea}>
       <FocusAwareStatusBar style="light" backgroundColor="transparent" translucent />
       <View style={styles.header}>
+        {store.bannerUrl ? (
+          <>
+            <AppImage uri={store.bannerUrl} style={styles.headerBanner} fallbackEmoji="🏪" />
+            <View style={styles.headerOverlay} />
+          </>
+        ) : null}
         <View style={styles.headerActions}>
           <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.goBack()} style={styles.headerBackButton}>
             <Ionicons name="arrow-back" size={22} color={colors.surface} />
@@ -124,6 +131,7 @@ export default function StoreDetailScreen({ navigation, route }) {
             </TouchableOpacity>
           ) : null}
         </View>
+        {store.logoUrl ? <AppImage uri={store.logoUrl} style={styles.headerLogo} fallbackEmoji="🏪" /> : null}
         <Text style={styles.headerName}>{store.name}</Text>
         <Text style={styles.headerCity}>{store.city ?? 'Guatemala'}</Text>
         <Text style={styles.headerRating}>⭐ {rating}</Text>
@@ -231,12 +239,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,
+    overflow: 'hidden',
+  },
+  headerBanner: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  headerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(27,67,50,0.62)',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.md,
+  },
+  headerLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    marginBottom: spacing.sm,
   },
   headerBackButton: {
     width: 40,

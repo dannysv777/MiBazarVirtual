@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -18,8 +19,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as profileApi from '../../api/profileApi';
 import { getMyStore } from '../../api/storesApi';
+import { uploadImage } from '../../api/uploadApi';
 import AppBadge from '../../components/common/AppBadge';
 import AppButton from '../../components/common/AppButton';
+import AppImage from '../../components/common/AppImage';
 import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import AppInput from '../../components/common/AppInput';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -38,16 +41,17 @@ const roleVariant = {
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { logout, updateUser, user } = useAuth();
-  const { showInfo } = useToast();
+  const { showError, showSuccess } = useToast();
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null);
   const [appInfo, setAppInfo] = useState(null);
   const [myStore, setMyStore] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ fullName: '', phone: '' });
+  const [editForm, setEditForm] = useState({ fullName: '', phone: '', profileImage: '' });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState('');
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -66,6 +70,7 @@ export default function ProfileScreen({ navigation }) {
       setEditForm({
         fullName: nextProfile?.fullName ?? '',
         phone: nextProfile?.phone ?? '',
+        profileImage: nextProfile?.profileImage ?? '',
       });
 
       const requests = [profileApi.getAppInfo()];
@@ -117,6 +122,39 @@ export default function ProfileScreen({ navigation }) {
       Alert.alert('Error', getErrorMessage(saveError, 'No pudimos actualizar tu perfil.'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePickProfileImage = async () => {
+    if (uploadingPhoto || saving) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showError('Necesitamos permiso para abrir tu galeria.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.82,
+    });
+
+    if (result.canceled || !result.assets?.length) {
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const uploaded = await uploadImage(result.assets[0]);
+      setEditForm((current) => ({ ...current, profileImage: uploaded.url }));
+      setProfile((current) => ({ ...current, profileImage: uploaded.url }));
+      showSuccess('Foto de perfil subida');
+    } catch (uploadError) {
+      showError(getErrorMessage(uploadError, 'No pudimos subir la foto.'));
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -186,14 +224,23 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name={isEditing ? 'close' : 'pencil'} size={20} color={colors.surface} />
             </TouchableOpacity>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+              {profile?.profileImage || editForm.profileImage ? (
+                <AppImage
+                  uri={editForm.profileImage || profile?.profileImage}
+                  style={styles.avatarImage}
+                  fallbackEmoji="👤"
+                />
+              ) : (
+                <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+              )}
               {isEditing ? (
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  onPress={() => showInfo('La subida de fotos estará disponible próximamente')}
+                  disabled={uploadingPhoto}
+                  onPress={handlePickProfileImage}
                   style={styles.cameraBadge}
                 >
-                  <Ionicons name="camera-outline" size={16} color={colors.textSecondary} />
+                  <Ionicons name={uploadingPhoto ? 'cloud-upload-outline' : 'camera-outline'} size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -228,6 +275,12 @@ export default function ProfileScreen({ navigation }) {
                   keyboardType="phone-pad"
                   onChangeText={(phone) => setEditForm((current) => ({ ...current, phone }))}
                 />
+                <TouchableOpacity activeOpacity={0.8} onPress={handlePickProfileImage} style={styles.photoAction}>
+                  <Ionicons name="image-outline" size={18} color={colors.primary} />
+                  <Text style={styles.photoActionText}>
+                    {uploadingPhoto ? 'Subiendo foto...' : editForm.profileImage ? 'Cambiar foto de perfil' : 'Subir foto de perfil'}
+                  </Text>
+                </TouchableOpacity>
                 <View style={styles.editActions}>
                   <View style={styles.editButtonWrap}>
                     <AppButton title="Cancelar" variant="outline" fullWidth onPress={() => setIsEditing(false)} />
@@ -421,6 +474,12 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     backgroundColor: colors.accent,
     marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   cameraBadge: {
     position: 'absolute',
@@ -438,6 +497,21 @@ const styles = StyleSheet.create({
   avatarText: {
     ...typography.h1,
     color: colors.surface,
+  },
+  photoAction: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+    marginBottom: spacing.md,
+  },
+  photoActionText: {
+    ...typography.small,
+    color: colors.primary,
+    fontWeight: '800',
   },
   headerName: {
     ...typography.h2,

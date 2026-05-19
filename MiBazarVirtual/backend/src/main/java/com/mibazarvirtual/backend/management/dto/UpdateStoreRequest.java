@@ -13,6 +13,8 @@ public record UpdateStoreRequest(
         @Size(max = 100) String city,
         @Size(max = 20) String phone,
         @Size(max = 160) String schedule,
+        @Size(max = 500) String logoUrl,
+        @Size(max = 500) String bannerUrl,
         @DecimalMin("-90.0") @DecimalMax("90.0") BigDecimal latitude,
         @DecimalMin("-180.0") @DecimalMax("180.0") BigDecimal longitude
 ) {

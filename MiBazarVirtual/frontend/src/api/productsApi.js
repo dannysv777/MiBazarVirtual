@@ -36,7 +36,14 @@ const normalizeProductPayload = (data) => ({
 const cleanImageUrl = (url) => (url?.includes('unsplash.com') ? null : url);
 
 const cleanProduct = (product) => {
-  const imageUrl = cleanImageUrl(product.imageUrl ?? product.coverImage);
+  const imageUrl = cleanImageUrl(
+    product.imageUrl
+    ?? product.coverImage
+    ?? product.mainImageUrl
+    ?? product.productImageUrl
+    ?? product.image
+    ?? product.images?.[0]?.url
+  );
 
   return {
     ...product,

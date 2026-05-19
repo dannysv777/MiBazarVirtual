@@ -28,6 +28,7 @@ public class ProfileService {
                 .map(user -> {
                     user.setFullName(request.fullName().trim());
                     user.setPhone(request.phone());
+                    user.setProfileImage(request.profileImage());
                     return ProfileResponse.from(user);
                 })
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));

@@ -20,6 +20,7 @@ public record ProductDTO(
         String unit,
         int stock,
         String coverImage,
+        String imageUrl,
         LocalDate expirationDate,
         String status
 ) {
@@ -39,6 +40,7 @@ public record ProductDTO(
                 product.getDiscountPrice(),
                 product.getUnit().name(),
                 product.getStock(),
+                product.getCoverImage(),
                 product.getCoverImage(),
                 product.getExpirationDate(),
                 product.getStatus().name()

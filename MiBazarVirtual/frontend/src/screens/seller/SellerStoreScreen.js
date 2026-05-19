@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as storesApi from '../../api/storesApi';
+import { uploadImage } from '../../api/uploadApi';
 import AppButton from '../../components/common/AppButton';
+import AppImage from '../../components/common/AppImage';
 import AppInput from '../../components/common/AppInput';
 import EmptyState from '../../components/common/EmptyState';
 import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
@@ -21,6 +24,8 @@ const emptyForm = {
   city: 'Guatemala',
   phone: '',
   schedule: '',
+  logoUrl: '',
+  bannerUrl: '',
 };
 
 export default function SellerStoreScreen({ navigation }) {
@@ -29,6 +34,7 @@ export default function SellerStoreScreen({ navigation }) {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingField, setUploadingField] = useState(null);
   const [error, setError] = useState('');
 
   const loadStore = useCallback(async () => {
@@ -46,6 +52,8 @@ export default function SellerStoreScreen({ navigation }) {
         city: nextStore?.city ?? 'Guatemala',
         phone: nextStore?.phone ?? '',
         schedule: nextStore?.schedule ?? '',
+        logoUrl: nextStore?.logoUrl ?? '',
+        bannerUrl: nextStore?.bannerUrl ?? '',
       });
     } catch (storeError) {
       const status = storeError.response?.status;
@@ -68,6 +76,38 @@ export default function SellerStoreScreen({ navigation }) {
 
   const updateField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
+  const handlePickImage = async (field, aspect) => {
+    if (uploadingField || saving) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showError('Necesitamos permiso para abrir tu galeria.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect,
+      quality: 0.82,
+    });
+
+    if (result.canceled || !result.assets?.length) {
+      return;
+    }
+
+    setUploadingField(field);
+    try {
+      const uploaded = await uploadImage(result.assets[0]);
+      updateField(field, uploaded.url);
+      showSuccess(field === 'logoUrl' ? 'Logo subido' : 'Portada subida');
+    } catch (uploadError) {
+      showError(getErrorMessage(uploadError, 'No pudimos subir la imagen.'));
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) {
       showError('Ingresa el nombre de tu tienda.');
@@ -84,6 +124,8 @@ export default function SellerStoreScreen({ navigation }) {
       city: form.city.trim(),
       phone: form.phone.trim(),
       schedule: form.schedule.trim(),
+      logoUrl: form.logoUrl,
+      bannerUrl: form.bannerUrl,
       latitude: null,
       longitude: null,
     };
@@ -138,9 +180,7 @@ export default function SellerStoreScreen({ navigation }) {
 
         {store?.id ? (
           <View style={styles.previewCard}>
-            <View style={styles.storeAvatar}>
-              <Ionicons name="storefront" size={28} color={colors.surface} />
-            </View>
+            <StoreLogo uri={form.logoUrl || store.logoUrl} />
             <View style={styles.previewInfo}>
               <Text style={styles.previewName}>{store.name}</Text>
               <Text style={styles.previewMeta}>{store.city ?? 'Guatemala'} · {store.schedule || 'Horario por definir'}</Text>
@@ -157,6 +197,35 @@ export default function SellerStoreScreen({ navigation }) {
 
         <View style={styles.formCard}>
           <Text style={styles.cardTitle}>Informacion de la tienda</Text>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={Boolean(uploadingField) || saving}
+            onPress={() => handlePickImage('bannerUrl', [16, 9])}
+            style={styles.bannerPicker}
+          >
+            {uploadingField === 'bannerUrl' ? (
+              <ImagePlaceholder icon="cloud-upload-outline" title="Subiendo portada..." />
+            ) : form.bannerUrl ? (
+              <AppImage uri={form.bannerUrl} style={styles.bannerImage} fallbackEmoji="🏪" />
+            ) : (
+              <ImagePlaceholder icon="image-outline" title="Agregar portada" subtitle="Ideal para mostrar tu tienda" />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={Boolean(uploadingField) || saving}
+            onPress={() => handlePickImage('logoUrl', [1, 1])}
+            style={styles.logoPicker}
+          >
+            {uploadingField === 'logoUrl' ? (
+              <ImagePlaceholder icon="cloud-upload-outline" title="Subiendo logo..." compact />
+            ) : form.logoUrl ? (
+              <AppImage uri={form.logoUrl} style={styles.logoImage} fallbackEmoji="🏪" />
+            ) : (
+              <ImagePlaceholder icon="camera-outline" title="Agregar logo" compact />
+            )}
+          </TouchableOpacity>
           <AppInput
             label="Nombre de la tienda"
             value={form.name}
@@ -208,6 +277,28 @@ export default function SellerStoreScreen({ navigation }) {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function StoreLogo({ uri }) {
+  if (uri) {
+    return <AppImage uri={uri} style={styles.storeLogoImage} fallbackEmoji="🏪" />;
+  }
+
+  return (
+    <View style={styles.storeAvatar}>
+      <Ionicons name="storefront" size={28} color={colors.surface} />
+    </View>
+  );
+}
+
+function ImagePlaceholder({ icon, title, subtitle, compact = false }) {
+  return (
+    <View style={[styles.imagePlaceholder, compact && styles.imagePlaceholderCompact]}>
+      <Ionicons name={icon} size={compact ? 24 : 36} color={colors.textSecondary} />
+      <Text style={styles.imagePlaceholderTitle}>{title}</Text>
+      {subtitle ? <Text style={styles.imagePlaceholderSubtitle}>{subtitle}</Text> : null}
+    </View>
   );
 }
 
@@ -271,6 +362,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary,
     marginRight: spacing.md,
   },
+  storeLogoImage: {
+    width: scale(58),
+    height: scale(58),
+    borderRadius: scale(29),
+    marginRight: spacing.md,
+  },
   previewInfo: {
     flex: 1,
   },
@@ -293,6 +390,59 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.surface,
     ...shadows.card,
+  },
+  bannerPicker: {
+    height: scale(150),
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  logoPicker: {
+    width: scale(92),
+    height: scale(92),
+    alignSelf: 'center',
+    borderRadius: scale(46),
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: scale(46),
+  },
+  imagePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+  },
+  imagePlaceholderCompact: {
+    padding: spacing.sm,
+  },
+  imagePlaceholderTitle: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: '800',
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  imagePlaceholderSubtitle: {
+    ...typography.tiny,
+    color: colors.textLight,
+    marginTop: 2,
+    textAlign: 'center',
   },
   cardTitle: {
     ...typography.bodyBold,

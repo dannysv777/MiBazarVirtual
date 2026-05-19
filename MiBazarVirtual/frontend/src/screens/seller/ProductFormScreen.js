@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getCategories } from '../../api/categoriesApi';
 import * as productsApi from '../../api/productsApi';
+import { uploadImage } from '../../api/uploadApi';
 import AppButton from '../../components/common/AppButton';
 import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import AppImage from '../../components/common/AppImage';
@@ -30,7 +31,7 @@ const units = ['libra', 'kg', 'unidad', 'litro', 'docena', 'bolsa', 'caja', 'man
 export default function ProductFormScreen({ navigation, route, mode = 'create' }) {
   const product = route?.params?.product;
   const isEdit = mode === 'edit';
-  const { showError, showInfo, showSuccess } = useToast();
+  const { showError, showSuccess } = useToast();
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({
     name: product?.name ?? '',
@@ -44,6 +45,7 @@ export default function ProductFormScreen({ navigation, route, mode = 'create' }
   const [errors, setErrors] = useState({});
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const canSubmit = useMemo(() => (
     form.name.trim().length >= 3
@@ -86,6 +88,38 @@ export default function ProductFormScreen({ navigation, route, mode = 'create' }
     return Object.keys(nextErrors).length === 0;
   };
 
+  const handlePickImage = async () => {
+    if (uploadingImage || saving) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showError('Necesitamos permiso para abrir tu galeria.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.82,
+    });
+
+    if (result.canceled || !result.assets?.length) {
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const uploaded = await uploadImage(result.assets[0]);
+      updateField('imageUrl', uploaded.url);
+      showSuccess('Foto subida');
+    } catch (uploadError) {
+      showError(getErrorMessage(uploadError, 'No pudimos subir la foto.'));
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validate()) return;
 
@@ -105,7 +139,7 @@ export default function ProductFormScreen({ navigation, route, mode = 'create' }
         await productsApi.updateProduct(product.id, payload);
         showSuccess('Producto actualizado');
       } else {
-        await productsApi.createProduct({ ...payload, imageUrl: null });
+        await productsApi.createProduct(payload);
         showSuccess('¡Producto publicado!');
       }
       navigation.goBack();
@@ -135,16 +169,22 @@ export default function ProductFormScreen({ navigation, route, mode = 'create' }
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => showInfo('La subida de fotos estará disponible próximamente')}
+            disabled={uploadingImage || saving}
+            onPress={handlePickImage}
             style={styles.imagePicker}
           >
-            {form.imageUrl ? (
+            {uploadingImage ? (
+              <View style={styles.imagePlaceholder}>
+                <LoadingSpinner size="small" />
+                <Text style={styles.imageText}>Subiendo foto...</Text>
+              </View>
+            ) : form.imageUrl ? (
               <AppImage uri={form.imageUrl} style={styles.imagePreview} fallbackEmoji="🛒" />
             ) : (
               <View style={styles.imagePlaceholder}>
                 <Ionicons name="camera-outline" size={48} color={colors.textSecondary} />
                 <Text style={styles.imageText}>Agregar foto del producto</Text>
-                <Text style={styles.imageHint}>(opcional por ahora)</Text>
+                <Text style={styles.imageHint}>JPG, PNG o WebP</Text>
               </View>
             )}
           </TouchableOpacity>

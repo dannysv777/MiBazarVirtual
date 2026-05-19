@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/stores/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/upload/image").authenticated()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/recommendations/feed").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/recommendations/stores").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/recommendations/similar").permitAll()

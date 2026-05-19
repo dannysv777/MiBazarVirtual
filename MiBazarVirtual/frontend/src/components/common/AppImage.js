@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 
@@ -15,6 +15,11 @@ export default function AppImage({
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(Boolean(uri));
   const shouldFallback = !uri || hasError;
+
+  useEffect(() => {
+    setHasError(false);
+    setIsLoading(Boolean(uri));
+  }, [uri]);
 
   if (shouldFallback) {
     return (
@@ -34,7 +39,9 @@ export default function AppImage({
         transition={300}
         cachePolicy="memory-disk"
         onError={() => setHasError(true)}
+        onLoadStart={() => setIsLoading(true)}
         onLoad={() => setIsLoading(false)}
+        onLoadEnd={() => setIsLoading(false)}
       />
       {isLoading ? <SkeletonLoader width="100%" height="100%" borderRadius={0} style={styles.loader} /> : null}
     </View>

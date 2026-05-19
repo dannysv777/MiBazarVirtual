@@ -82,6 +82,8 @@ public class StoreManagementService {
         store.setCity(request.city());
         store.setPhone(request.phone());
         store.setSchedule(request.schedule());
+        store.setLogoUrl(request.logoUrl());
+        store.setBannerUrl(request.bannerUrl());
         store.setLatitude(request.latitude());
         store.setLongitude(request.longitude());
     }
@@ -93,6 +95,8 @@ public class StoreManagementService {
         if (request.city() != null) store.setCity(request.city());
         if (request.phone() != null) store.setPhone(request.phone());
         if (request.schedule() != null) store.setSchedule(request.schedule());
+        if (request.logoUrl() != null) store.setLogoUrl(request.logoUrl());
+        if (request.bannerUrl() != null) store.setBannerUrl(request.bannerUrl());
         if (request.latitude() != null) store.setLatitude(request.latitude());
         if (request.longitude() != null) store.setLongitude(request.longitude());
     }
