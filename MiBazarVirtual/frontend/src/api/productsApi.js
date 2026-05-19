@@ -33,7 +33,7 @@ const normalizeProductPayload = (data) => ({
   unit: normalizeUnit(data.unit),
 });
 
-const cleanImageUrl = (url) => (url?.includes('unsplash.com') ? null : url);
+const cleanImageUrl = (url) => url ?? null;
 
 const cleanProduct = (product) => {
   const imageUrl = cleanImageUrl(

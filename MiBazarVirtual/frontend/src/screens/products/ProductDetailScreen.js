@@ -4,7 +4,6 @@ import {
   Alert,
   FlatList,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -154,17 +153,6 @@ export default function ProductDetailScreen({ navigation, route }) {
     addItem(product, quantity);
   };
 
-  const handleShare = async () => {
-    const price = Number(product.price ?? 0).toFixed(2);
-    const unit = product.unit ?? 'u';
-    const storeName = store?.name ?? product?.storeName ?? 'MiBazarVirtual';
-
-    await Share.share({
-      title: product.name,
-      message: `🛒 Mira este producto en MiBazarVirtual:\n\n${product.name}\nPrecio: Q ${price}/${unit}\nTienda: ${storeName}\n\nDescarga MiBazarVirtual para comprarlo`,
-    });
-  };
-
   const handleChat = async () => {
     const sellerId = store?.sellerId ?? product?.sellerId;
 
@@ -246,9 +234,6 @@ export default function ProductDetailScreen({ navigation, route }) {
               onChange={setInitialIsFavorite}
             />
           ) : null}
-          <TouchableOpacity activeOpacity={0.85} onPress={handleShare} style={styles.shareButton}>
-            <Ionicons name="share-outline" size={22} color={colors.surface} />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.contentCard}>
@@ -390,10 +375,12 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     height: hp(35),
+    position: 'relative',
+    backgroundColor: colors.background,
   },
   image: {
     width: '100%',
-    height: hp(35),
+    height: '100%',
   },
   fallbackImage: {
     height: hp(35),
@@ -414,22 +401,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: scale(18),
     backgroundColor: colors.surface,
+    zIndex: 4,
+    elevation: 4,
   },
   favoriteButton: {
     position: 'absolute',
     top: spacing.md,
-    left: spacing.md + scale(44),
-  },
-  shareButton: {
-    position: 'absolute',
-    top: spacing.md,
     right: spacing.md,
-    width: scale(36),
-    height: scale(36),
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: scale(18),
-    backgroundColor: 'rgba(0,0,0,0.32)',
+    zIndex: 4,
+    elevation: 4,
   },
   contentCard: {
     marginTop: -24,
