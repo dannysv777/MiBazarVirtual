@@ -2,14 +2,17 @@ import { AppState } from 'react-native';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import * as notificationsApi from '../api/notificationsApi';
+import * as pushApi from '../api/pushApi';
 import { useAuth } from './AuthContext';
 import { getPayload } from '../utils/apiResponse';
+import { getPushToken } from '../utils/pushNotifications';
 
 export const NotificationContext = createContext(null);
 
 export function NotificationProvider({ children }) {
   const { isAuthenticated } = useAuth();
   const appStateRef = useRef(AppState.currentState);
+  const registeredTokenRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const refreshUnreadCount = useCallback(async () => {
@@ -44,6 +47,35 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     refreshUnreadCount();
   }, [refreshUnreadCount]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const registerDeviceToken = async () => {
+      if (!isAuthenticated) {
+        registeredTokenRef.current = null;
+        return;
+      }
+
+      try {
+        const tokenPayload = await getPushToken();
+
+        if (!mounted || !tokenPayload?.token || registeredTokenRef.current === tokenPayload.token) {
+          return;
+        }
+
+        await pushApi.registerPushToken(tokenPayload);
+        registeredTokenRef.current = tokenPayload.token;
+      } catch (error) {
+      }
+    };
+
+    registerDeviceToken();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) {

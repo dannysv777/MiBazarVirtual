@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "727983217175",
+    "project_id": "mi-bazar-eee41",
+    "storage_bucket": "mi-bazar-eee41.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:727983217175:android:c2b852c164e534f38fda52",
+        "android_client_info": {
+          "package_name": "com.services"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3WKglFrHQ9YYPoP8-HefKdh0EdDT-jOE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

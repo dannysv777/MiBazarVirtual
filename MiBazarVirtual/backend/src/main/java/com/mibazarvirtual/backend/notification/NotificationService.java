@@ -8,6 +8,7 @@ import com.mibazarvirtual.backend.entity.Product;
 import com.mibazarvirtual.backend.entity.Review;
 import com.mibazarvirtual.backend.entity.Store;
 import com.mibazarvirtual.backend.entity.User;
+import com.mibazarvirtual.backend.push.PushNotificationService;
 import com.mibazarvirtual.backend.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
@@ -38,6 +39,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional
     public Notification createNotification(
@@ -56,7 +58,9 @@ public class NotificationService {
         notification.setTitle(title);
         notification.setBody(body);
         notification.setData(toJson(data));
-        return notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        pushNotificationService.sendToUser(userId, title, body, data);
+        return saved;
     }
 
     public void notifyOrderConfirmed(Order order) {

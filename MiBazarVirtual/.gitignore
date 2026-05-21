@@ -1,0 +1,9 @@
+node_modules/
+.expo/
+.expo-export-test/
+.env
+.env.local
+
+# Firebase Admin private keys must stay out of Git.
+docs/*firebase-adminsdk*.json
+backend/src/main/resources/*firebase-adminsdk*.json

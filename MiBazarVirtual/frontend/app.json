@@ -7,6 +7,8 @@
     "icon": "./assets/icon.png",
     "splash": { "backgroundColor": "#1B4332" },
     "android": {
+      "package": "com.services",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": { "backgroundColor": "#1B4332" }
     },
     "androidStatusBar": {
@@ -15,13 +17,23 @@
       "barStyle": "dark-content"
     },
     "ios": {
+      "bundleIdentifier": "com.serviceaccount",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
         "NSCameraUsageDescription": "MiBazarVirtual usa la camara para tomar fotos de tus productos.",
-        "NSPhotoLibraryUsageDescription": "MiBazarVirtual usa tu galeria para seleccionar fotos de productos."
+        "NSPhotoLibraryUsageDescription": "MiBazarVirtual usa tu galeria para seleccionar fotos de productos.",
+        "NSUserNotificationUsageDescription": "MiBazarVirtual usa notificaciones para avisarte sobre pedidos y mensajes."
       }
     },
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#1B4332",
+      "androidMode": "default",
+      "androidCollapsedTitle": "MiBazarVirtual"
+    },
     "plugins": [
+      "expo-notifications",
       [
         "expo-image-picker",
         {
@@ -29,6 +41,10 @@
           "cameraPermission": "MiBazarVirtual usa la camara para tomar fotos de tus productos."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "firebaseProjectId": "mi-bazar-eee41",
+      "firebaseSenderId": "727983217175"
+    }
   }
 }
