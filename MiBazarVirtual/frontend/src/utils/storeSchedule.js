@@ -2,15 +2,23 @@ import { colors } from '../theme';
 
 const dayMap = {
   domingo: 0,
+  dom: 0,
   lunes: 1,
+  lun: 1,
   martes: 2,
+  mar: 2,
   miercoles: 3,
+  mie: 3,
   jueves: 4,
+  jue: 4,
   viernes: 5,
+  vie: 5,
   sabado: 6,
+  sab: 6,
 };
 
 const dayNames = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+const dayPattern = 'lunes|lun|martes|mar|miercoles|mie|jueves|jue|viernes|vie|sabado|sab|domingo|dom';
 
 const normalize = (value = '') => value
   .toLowerCase()
@@ -18,12 +26,14 @@ const normalize = (value = '') => value
   .replace(/[\u0300-\u036f]/g, '');
 
 const toMinutes = (time) => {
-  const match = time.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
+  const match = time.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
   if (!match) return null;
 
   let hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const period = match[3].toLowerCase();
+  const minute = Number(match[2] ?? 0);
+  const period = match[3]?.toLowerCase();
+
+  if (hour > 23 || minute > 59) return null;
 
   if (period === 'pm' && hour !== 12) hour += 12;
   if (period === 'am' && hour === 12) hour = 0;
@@ -57,7 +67,7 @@ export const parseSchedule = (scheduleString) => {
   }
 
   const normalized = normalize(scheduleString);
-  const timeMatch = normalized.match(/(\d{1,2}:\d{2}(?:am|pm))\s*-\s*(\d{1,2}:\d{2}(?:am|pm))/i);
+  const timeMatch = normalized.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*(?:-|a|hasta|–|—)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i);
 
   if (!timeMatch) {
     return null;
@@ -71,10 +81,15 @@ export const parseSchedule = (scheduleString) => {
   }
 
   let openDays = [0, 1, 2, 3, 4, 5, 6];
-  const dayMatch = normalized.match(/(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\s+a\s+(lunes|martes|miercoles|jueves|viernes|sabado|domingo)/);
+  const dayRangeMatch = normalized.match(new RegExp(`(${dayPattern})\\s*(?:a|-|hasta)\\s*(${dayPattern})`));
+  const singleDayMatches = [...normalized.matchAll(new RegExp(`\\b(${dayPattern})\\b`, 'g'))].map((match) => dayMap[match[1]]);
 
-  if (!normalized.includes('todos los dias') && dayMatch) {
-    openDays = rangeDays(dayMap[dayMatch[1]], dayMap[dayMatch[2]]);
+  if (!normalized.includes('todos los dias') && !normalized.includes('diario')) {
+    if (dayRangeMatch) {
+      openDays = rangeDays(dayMap[dayRangeMatch[1]], dayMap[dayRangeMatch[2]]);
+    } else if (singleDayMatches.length) {
+      openDays = [...new Set(singleDayMatches)];
+    }
   }
 
   return {

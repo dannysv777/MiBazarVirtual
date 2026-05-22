@@ -6,6 +6,7 @@ import com.mibazarvirtual.backend.chat.dto.MessageDTO;
 import com.mibazarvirtual.backend.entity.Conversation;
 import com.mibazarvirtual.backend.entity.Message;
 import com.mibazarvirtual.backend.entity.Product;
+import com.mibazarvirtual.backend.entity.Store;
 import com.mibazarvirtual.backend.entity.User;
 import com.mibazarvirtual.backend.exception.ConversationNotFoundException;
 import com.mibazarvirtual.backend.exception.UnauthorizedParticipantException;
@@ -13,6 +14,7 @@ import com.mibazarvirtual.backend.notification.NotificationService;
 import com.mibazarvirtual.backend.repository.ConversationRepository;
 import com.mibazarvirtual.backend.repository.MessageRepository;
 import com.mibazarvirtual.backend.repository.ProductRepository;
+import com.mibazarvirtual.backend.repository.StoreRepository;
 import com.mibazarvirtual.backend.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
@@ -30,6 +32,7 @@ public class ChatService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final StoreRepository storeRepository;
     private final NotificationService notificationService;
 
     @Transactional
@@ -177,6 +180,15 @@ public class ChatService {
         User otherParticipant = conversation.getBuyer().getId().equals(currentUserId)
                 ? conversation.getSeller()
                 : conversation.getBuyer();
+        Store otherStore = otherParticipant.getRole() == User.Role.SELLER
+                ? storeRepository.findByUserId(otherParticipant.getId()).orElse(null)
+                : null;
+        String displayName = otherStore == null || otherStore.getName() == null
+                ? otherParticipant.getUsername()
+                : otherStore.getName();
+        String displayImage = otherStore == null || otherStore.getLogoUrl() == null
+                ? otherParticipant.getProfileImage()
+                : otherStore.getLogoUrl();
 
         return new ConversationDTO(
                 conversation.getId(),
@@ -189,8 +201,8 @@ public class ChatService {
                 lastMessage == null ? null : lastMessage.getContent(),
                 lastMessage == null ? null : lastMessage.getCreatedAt(),
                 messageRepository.countByConversationIdAndReadFalseAndSenderIdNot(conversation.getId(), currentUserId),
-                otherParticipant.getUsername(),
-                otherParticipant.getProfileImage()
+                displayName,
+                displayImage
         );
     }
 

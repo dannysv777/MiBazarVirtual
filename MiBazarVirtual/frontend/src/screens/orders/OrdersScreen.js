@@ -34,11 +34,16 @@ export default function OrdersScreen({ navigation }) {
   const [status, setStatus] = useState(undefined);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filtering, setFiltering] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   const loadOrders = useCallback(async ({ silent = false } = {}) => {
-    if (!silent) setLoading(true);
+    if (!silent && orders.length === 0) {
+      setLoading(true);
+    } else if (!silent) {
+      setFiltering(true);
+    }
     setError('');
 
     try {
@@ -50,9 +55,10 @@ export default function OrdersScreen({ navigation }) {
       setError(getErrorMessage(ordersError, 'No pudimos cargar tus pedidos.'));
     } finally {
       setLoading(false);
+      setFiltering(false);
       setRefreshing(false);
     }
-  }, [activeTab, status]);
+  }, [activeTab, orders.length, status]);
 
   useEffect(() => {
     setActiveTab(isSeller ? 'SELLER' : 'BUYER');
@@ -84,13 +90,23 @@ export default function OrdersScreen({ navigation }) {
             <TouchableOpacity
               key={filter.label}
               activeOpacity={0.85}
-              onPress={() => setStatus(filter.value)}
+              onPress={() => {
+                if (status !== filter.value) {
+                  setStatus(filter.value);
+                }
+              }}
               style={[styles.chip, status === filter.value && styles.activeChip]}
             >
               <Text style={[styles.chipText, status === filter.value && styles.activeChipText]}>{filter.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
+      ) : null}
+
+      {filtering ? (
+        <View style={styles.filteringBar}>
+          <Text style={styles.filteringText}>Actualizando pedidos...</Text>
+        </View>
       ) : null}
 
       {loading ? (
@@ -152,7 +168,7 @@ const styles = StyleSheet.create({
   },
   filtersScroll: {
     flexGrow: 0,
-    maxHeight: 52,
+    height: 52,
   },
   chip: {
     height: 38,
@@ -176,6 +192,16 @@ const styles = StyleSheet.create({
   listContent: {
     paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
+  },
+  filteringBar: {
+    minHeight: 28,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  filteringText: {
+    ...typography.tiny,
+    color: colors.textSecondary,
+    fontWeight: '700',
   },
   emptyContent: {
     flexGrow: 1,
