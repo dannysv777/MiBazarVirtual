@@ -59,7 +59,8 @@ public class PushTokenController {
         String body = request == null || request.body() == null || request.body().isBlank()
                 ? "Si ves esta notificacion, el dispositivo ya recibe avisos push."
                 : request.body().trim();
-        long activeTokens = pushNotificationService.countActiveTokens(userId);
+        Map<String, Object> pushStatus = pushNotificationService.getDeliveryStatus(userId);
+        long activeTokens = ((Number) pushStatus.get("activePushTokens")).longValue();
 
         notificationService.createNotification(
                 userId,
@@ -70,7 +71,7 @@ public class PushTokenController {
         );
 
         return ResponseEntity.ok(ApiResponse.ok(
-                Map.of("activePushTokens", activeTokens, "notificationCreated", true),
+                Map.of("push", pushStatus, "notificationCreated", true),
                 activeTokens > 0
                         ? "Prueba push enviada"
                         : "Notificacion interna creada; este usuario aun no tiene token push registrado"

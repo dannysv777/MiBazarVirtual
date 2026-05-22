@@ -13,9 +13,9 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function getPushToken() {
+export async function getPushTokens() {
   if (!Device.isDevice) {
-    return null;
+    return [];
   }
 
   if (Platform.OS === 'android') {
@@ -36,8 +36,10 @@ export async function getPushToken() {
   }
 
   if (finalStatus !== 'granted') {
-    return null;
+    return [];
   }
+
+  const tokens = [];
 
   try {
     const projectId = Constants.expoConfig?.extra?.eas?.projectId
@@ -45,20 +47,28 @@ export async function getPushToken() {
       ?? undefined;
     const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
 
-    return {
+    tokens.push({
       token: token.data,
       tokenType: 'EXPO',
       platform: Platform.OS,
       deviceId: Constants.sessionId ?? Device.osInternalBuildId ?? null,
-    };
+    });
   } catch (expoError) {
+    console.warn('Expo push token could not be created', expoError);
+  }
+
+  try {
     const nativeToken = await Notifications.getDevicePushTokenAsync();
 
-    return {
+    tokens.push({
       token: nativeToken.data,
       tokenType: 'NATIVE',
       platform: Platform.OS,
       deviceId: Constants.sessionId ?? Device.osInternalBuildId ?? null,
-    };
+    });
+  } catch (nativeError) {
+    console.warn('Native push token could not be created', nativeError);
   }
+
+  return tokens;
 }

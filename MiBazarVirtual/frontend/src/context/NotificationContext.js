@@ -5,7 +5,7 @@ import * as notificationsApi from '../api/notificationsApi';
 import * as pushApi from '../api/pushApi';
 import { useAuth } from './AuthContext';
 import { getPayload } from '../utils/apiResponse';
-import { getPushToken } from '../utils/pushNotifications';
+import { getPushTokens } from '../utils/pushNotifications';
 
 export const NotificationContext = createContext(null);
 
@@ -58,14 +58,21 @@ export function NotificationProvider({ children }) {
       }
 
       try {
-        const tokenPayload = await getPushToken();
+        const tokenPayloads = await getPushTokens();
 
-        if (!mounted || !tokenPayload?.token || registeredTokenRef.current === tokenPayload.token) {
+        if (!mounted || !tokenPayloads.length) {
           return;
         }
 
-        await pushApi.registerPushToken(tokenPayload);
-        registeredTokenRef.current = tokenPayload.token;
+        await Promise.all(tokenPayloads.map(async (tokenPayload) => {
+          if (!tokenPayload?.token || registeredTokenRef.current?.has(tokenPayload.token)) {
+            return;
+          }
+
+          await pushApi.registerPushToken(tokenPayload);
+          registeredTokenRef.current ??= new Set();
+          registeredTokenRef.current.add(tokenPayload.token);
+        }));
       } catch (error) {
       }
     };

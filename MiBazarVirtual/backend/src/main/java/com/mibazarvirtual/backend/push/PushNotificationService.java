@@ -29,6 +29,7 @@ public class PushNotificationService {
     private final PushTokenRepository pushTokenRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final FirebasePushSender firebasePushSender;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(8))
             .build();
@@ -69,6 +70,16 @@ public class PushNotificationService {
     }
 
     @Transactional(readOnly = true)
+    public Map<String, Object> getDeliveryStatus(Long userId) {
+        return Map.of(
+                "activePushTokens", countActiveTokens(userId),
+                "expoTokens", pushTokenRepository.countByUserIdAndActiveTrueAndTokenType(userId, PushToken.TokenType.EXPO),
+                "nativeTokens", pushTokenRepository.countByUserIdAndActiveTrueAndTokenType(userId, PushToken.TokenType.NATIVE),
+                "firebaseConfigured", firebasePushSender.isConfigured()
+        );
+    }
+
+    @Transactional(readOnly = true)
     public void sendToUser(Long userId, String title, String body, Map<String, Object> data) {
         sendToUsers(List.of(userId), title, body, data);
     }
@@ -83,8 +94,10 @@ public class PushNotificationService {
         for (PushToken token : tokens) {
             if (token.getTokenType() == PushToken.TokenType.EXPO) {
                 sendExpoPush(token, title, body, data);
+            } else if ("android".equalsIgnoreCase(token.getPlatform())) {
+                firebasePushSender.send(token, title, body, data);
             } else {
-                log.info("Native push token registered for user {}, Firebase Admin pending", token.getUser().getId());
+                log.info("Skipping native {} push token {} until APNs direct delivery is configured", token.getPlatform(), token.getId());
             }
         }
     }

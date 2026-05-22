@@ -11,6 +11,7 @@ La app ya queda preparada para notificaciones push con Expo/Firebase:
 - El token del dispositivo se registra en `POST /api/push-tokens`.
 - El backend guarda tokens en la tabla `push_tokens`.
 - Cada notificacion interna tambien intenta enviar push al usuario correspondiente.
+- Android registra token Expo y token nativo FCM cuando el dispositivo los entrega.
 
 ## Flujo
 
@@ -33,13 +34,29 @@ Content-Type: application/json
 
 4. Cuando el backend crea una notificacion interna, `NotificationService` llama a `PushNotificationService`.
 5. Si el token es Expo, se envia por `https://exp.host/--/api/v2/push/send`.
-6. Si el token es nativo, queda guardado, pero el envio por Firebase Admin queda pendiente.
+6. Si el token es nativo Android, se envia con Firebase Admin cuando Railway tiene la credencial de servidor.
 
 ## Importante para la demo
 
 Para recibir push reales en Android/iOS no basta con Expo Go en todos los casos. Lo mas estable es generar una development build o APK con EAS usando estos archivos Firebase.
 
-Los archivos `docs/*firebase-adminsdk*.json` son credenciales privadas. No se suben a Git. Para activar envio nativo directo por Firebase Admin en el futuro, se deben convertir a variables de entorno en Railway o montar el archivo como secreto.
+Los archivos `docs/*firebase-adminsdk*.json` son credenciales privadas. No se suben a Git.
+
+### Railway
+
+Para que el backend envie notificaciones nativas Android con Firebase:
+
+1. Abre Railway > backend > Variables.
+2. Crea **una** de estas variables:
+   - `FIREBASE_SERVICE_ACCOUNT_JSON`: pega el contenido completo de un `firebase-adminsdk*.json`.
+   - `FIREBASE_SERVICE_ACCOUNT_BASE64`: pega el mismo JSON codificado en Base64.
+3. Redespliega backend.
+
+El backend no necesita que el archivo privado quede dentro del repo. Los archivos publicos `google-services.json` y `GoogleService-Info.plist` conectan la app, pero el JSON Admin autoriza al servidor a mandar mensajes.
+
+### iOS y Expo
+
+El token nativo de iOS es APNs. La ruta nativa de este backend se enfoca en FCM Android; para iOS se conserva el envio por token Expo. Si el `ExpoPushToken` no aparece, hay que vincular el proyecto con EAS y tener `extra.eas.projectId` disponible en la configuracion de Expo.
 
 ## Prueba rapida
 
@@ -62,4 +79,11 @@ Content-Type: application/json
 }
 ```
 
-La respuesta incluye `activePushTokens`. Si devuelve `0`, la app aun no registro el token de ese usuario en ese dispositivo.
+La respuesta incluye:
+
+- `push.activePushTokens`: cantidad total de tokens registrados.
+- `push.expoTokens`: tokens que salen por Expo.
+- `push.nativeTokens`: tokens nativos, FCM en Android.
+- `push.firebaseConfigured`: `true` cuando Railway ya tiene la credencial Admin Firebase.
+
+Si `activePushTokens` devuelve `0`, la app aun no registro el token de ese usuario en ese dispositivo. Si hay `nativeTokens` pero `firebaseConfigured` es `false`, falta el secreto Firebase en Railway.
