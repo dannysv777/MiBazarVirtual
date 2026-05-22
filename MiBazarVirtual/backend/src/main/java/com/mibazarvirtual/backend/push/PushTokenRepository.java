@@ -11,4 +11,6 @@ public interface PushTokenRepository extends JpaRepository<PushToken, Long> {
     List<PushToken> findByUserIdAndActiveTrue(Long userId);
 
     List<PushToken> findByUserIdInAndActiveTrue(List<Long> userIds);
+
+    long countByUserIdAndActiveTrue(Long userId);
 }

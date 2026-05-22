@@ -64,6 +64,11 @@ public class PushNotificationService {
     }
 
     @Transactional(readOnly = true)
+    public long countActiveTokens(Long userId) {
+        return pushTokenRepository.countByUserIdAndActiveTrue(userId);
+    }
+
+    @Transactional(readOnly = true)
     public void sendToUser(Long userId, String title, String body, Map<String, Object> data) {
         sendToUsers(List.of(userId), title, body, data);
     }

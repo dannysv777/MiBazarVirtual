@@ -1,8 +1,10 @@
 package com.mibazarvirtual.backend.push;
 
 import com.mibazarvirtual.backend.common.dto.ApiResponse;
+import com.mibazarvirtual.backend.notification.NotificationService;
 import com.mibazarvirtual.backend.push.dto.PushTokenResponse;
 import com.mibazarvirtual.backend.push.dto.RegisterPushTokenRequest;
+import com.mibazarvirtual.backend.push.dto.TestPushRequest;
 import com.mibazarvirtual.backend.security.AuthenticatedUserResolver;
 import jakarta.validation.Valid;
 import java.util.Map;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PushTokenController {
 
     private final PushNotificationService pushNotificationService;
+    private final NotificationService notificationService;
     private final AuthenticatedUserResolver authenticatedUserResolver;
 
     @PostMapping
@@ -42,5 +45,35 @@ public class PushTokenController {
         Long userId = authenticatedUserResolver.currentUserId(authentication);
         pushNotificationService.deactivateToken(userId, request.get("token"));
         return ResponseEntity.ok(ApiResponse.ok(null, "Push token removed"));
+    }
+
+    @PostMapping("/test")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> test(
+            @Valid @RequestBody(required = false) TestPushRequest request,
+            Authentication authentication
+    ) {
+        Long userId = authenticatedUserResolver.currentUserId(authentication);
+        String title = request == null || request.title() == null || request.title().isBlank()
+                ? "Prueba push MiBazarVirtual"
+                : request.title().trim();
+        String body = request == null || request.body() == null || request.body().isBlank()
+                ? "Si ves esta notificacion, el dispositivo ya recibe avisos push."
+                : request.body().trim();
+        long activeTokens = pushNotificationService.countActiveTokens(userId);
+
+        notificationService.createNotification(
+                userId,
+                "PUSH_TEST",
+                title,
+                body,
+                Map.of("type", "PUSH_TEST", "source", "postman")
+        );
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                Map.of("activePushTokens", activeTokens, "notificationCreated", true),
+                activeTokens > 0
+                        ? "Prueba push enviada"
+                        : "Notificacion interna creada; este usuario aun no tiene token push registrado"
+        ));
     }
 }

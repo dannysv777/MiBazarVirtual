@@ -48,3 +48,18 @@ Los archivos `docs/*firebase-adminsdk*.json` son credenciales privadas. No se su
 3. Revisar en backend que se cree un registro en `push_tokens`.
 4. Generar una accion: nuevo mensaje, pedido confirmado o pedido disponible para delivery.
 5. Confirmar que aparece notificacion interna y push en el dispositivo.
+
+Si estas probando solo con un usuario, usa Postman:
+
+```http
+POST /api/push-tokens/test
+Authorization: Bearer <accessToken del login>
+Content-Type: application/json
+
+{
+  "title": "Prueba push",
+  "body": "Mensaje de prueba desde Postman"
+}
+```
+
+La respuesta incluye `activePushTokens`. Si devuelve `0`, la app aun no registro el token de ese usuario en ese dispositivo.
