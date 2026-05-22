@@ -12,11 +12,12 @@ La app ya queda preparada para notificaciones push con Expo/Firebase:
 - El backend guarda tokens en la tabla `push_tokens`.
 - Cada notificacion interna tambien intenta enviar push al usuario correspondiente.
 - Android registra token Expo y token nativo FCM cuando el dispositivo los entrega.
+- iOS no registra token nativo APNs en esta demo; se deja para una integracion APNs/EAS posterior.
 
 ## Flujo
 
 1. Usuario inicia sesion.
-2. `NotificationContext` llama a `getPushToken()`.
+2. `NotificationContext` llama a `getPushTokens()`.
 3. Si el permiso fue concedido, registra el token en backend:
 
 ```http
@@ -56,7 +57,18 @@ El backend no necesita que el archivo privado quede dentro del repo. Los archivo
 
 ### iOS y Expo
 
-El token nativo de iOS es APNs. La ruta nativa de este backend se enfoca en FCM Android; para iOS se conserva el envio por token Expo. Si el `ExpoPushToken` no aparece, hay que vincular el proyecto con EAS y tener `extra.eas.projectId` disponible en la configuracion de Expo.
+El token nativo de iOS es APNs. La ruta nativa de este backend se enfoca en FCM Android; para evitar falsos positivos, la app ya no registra tokens APNs nativos en esta demo. Para iOS se conserva el envio por token Expo cuando exista. Si el `ExpoPushToken` no aparece, hay que vincular el proyecto con EAS y tener `extra.eas.projectId` disponible en la configuracion de Expo.
+
+### Checklist Android
+
+1. Instalar una APK/development build Android que incluya `google-services.json`; Expo Go Android no es la prueba final para push remotas.
+2. Iniciar sesion y aceptar el permiso de notificaciones.
+3. Confirmar que existe el canal Android `default`; la app lo crea antes de pedir token.
+4. Ejecutar `POST /api/push-tokens/test`.
+5. La respuesta debe tener:
+   - `push.androidNativeTokens` mayor que `0`.
+   - `push.firebaseConfigured` en `true`.
+6. Probar con la app en segundo plano y luego cerrada.
 
 ## Prueba rapida
 
@@ -84,6 +96,8 @@ La respuesta incluye:
 - `push.activePushTokens`: cantidad total de tokens registrados.
 - `push.expoTokens`: tokens que salen por Expo.
 - `push.nativeTokens`: tokens nativos, FCM en Android.
+- `push.androidNativeTokens`: tokens Android que el backend envia por Firebase Admin.
+- `push.iosNativeTokens`: tokens iOS heredados; no se usan en esta demo sin APNs.
 - `push.firebaseConfigured`: `true` cuando Railway ya tiene la credencial Admin Firebase.
 
 Si `activePushTokens` devuelve `0`, la app aun no registro el token de ese usuario en ese dispositivo. Si hay `nativeTokens` pero `firebaseConfigured` es `false`, falta el secreto Firebase en Railway.

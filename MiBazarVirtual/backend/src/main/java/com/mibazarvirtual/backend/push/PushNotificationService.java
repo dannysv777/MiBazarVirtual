@@ -75,6 +75,16 @@ public class PushNotificationService {
                 "activePushTokens", countActiveTokens(userId),
                 "expoTokens", pushTokenRepository.countByUserIdAndActiveTrueAndTokenType(userId, PushToken.TokenType.EXPO),
                 "nativeTokens", pushTokenRepository.countByUserIdAndActiveTrueAndTokenType(userId, PushToken.TokenType.NATIVE),
+                "androidNativeTokens", pushTokenRepository.countByUserIdAndActiveTrueAndTokenTypeAndPlatformIgnoreCase(
+                        userId,
+                        PushToken.TokenType.NATIVE,
+                        "android"
+                ),
+                "iosNativeTokens", pushTokenRepository.countByUserIdAndActiveTrueAndTokenTypeAndPlatformIgnoreCase(
+                        userId,
+                        PushToken.TokenType.NATIVE,
+                        "ios"
+                ),
                 "firebaseConfigured", firebasePushSender.isConfigured()
         );
     }

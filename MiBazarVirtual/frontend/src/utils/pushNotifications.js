@@ -57,6 +57,10 @@ export async function getPushTokens() {
     console.warn('Expo push token could not be created', expoError);
   }
 
+  if (Platform.OS !== 'android') {
+    return tokens;
+  }
+
   try {
     const nativeToken = await Notifications.getDevicePushTokenAsync();
 

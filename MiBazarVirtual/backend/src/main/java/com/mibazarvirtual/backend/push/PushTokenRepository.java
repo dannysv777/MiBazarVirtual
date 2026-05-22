@@ -15,4 +15,10 @@ public interface PushTokenRepository extends JpaRepository<PushToken, Long> {
     long countByUserIdAndActiveTrue(Long userId);
 
     long countByUserIdAndActiveTrueAndTokenType(Long userId, PushToken.TokenType tokenType);
+
+    long countByUserIdAndActiveTrueAndTokenTypeAndPlatformIgnoreCase(
+            Long userId,
+            PushToken.TokenType tokenType,
+            String platform
+    );
 }
