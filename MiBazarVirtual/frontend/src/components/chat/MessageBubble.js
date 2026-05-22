@@ -4,13 +4,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AppImage from '../common/AppImage';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { parseProductMessage } from '../../utils/chatMessage';
-
-const formatTime = (date) => (
-  new Date(date).toLocaleTimeString('es-GT', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-);
+import { formatAppTime } from '../../utils/formatters';
 
 export default function MessageBubble({ message, isMine, onProductPress, fallbackProductId }) {
   const isRead = Boolean(message.isRead ?? message.read);
@@ -62,7 +56,7 @@ export default function MessageBubble({ message, isMine, onProductPress, fallbac
         </Text>
         <View style={styles.metaRow}>
           <Text style={[styles.time, isMine ? styles.mineTime : styles.theirTime]}>
-            {formatTime(message.createdAt ?? Date.now())}
+            {formatAppTime(message.createdAt ?? Date.now())}
           </Text>
           {isMine ? (
             <Ionicons

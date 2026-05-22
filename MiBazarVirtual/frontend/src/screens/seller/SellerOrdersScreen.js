@@ -159,20 +159,27 @@ export default function SellerOrdersScreen({ navigation }) {
         ))}
       </ScrollView>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll} contentContainerStyle={styles.filters}>
-        {statusFilters.map((filter) => (
-          <TouchableOpacity
-            key={filter.key}
-            activeOpacity={0.85}
-            onPress={() => setActiveStatus(filter.key)}
-            style={[styles.chip, activeStatus === filter.key ? styles.activeChip : styles.idleChip]}
-          >
-            <Text style={[styles.chipText, activeStatus === filter.key ? styles.activeChipText : styles.idleChipText]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.filtersWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersScroll}
+          contentContainerStyle={styles.filters}
+        >
+          {statusFilters.map((filter) => (
+            <TouchableOpacity
+              key={filter.key}
+              activeOpacity={0.85}
+              onPress={() => setActiveStatus(filter.key)}
+              style={[styles.chip, activeStatus === filter.key ? styles.activeChip : styles.idleChip]}
+            >
+              <Text style={[styles.chipText, activeStatus === filter.key ? styles.activeChipText : styles.idleChipText]}>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {error ? (
         <View style={styles.errorCard}>
@@ -297,16 +304,19 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
-  filtersScroll: {
-    flexGrow: 0,
+  filtersWrap: {
     height: 52,
     minHeight: 52,
+    maxHeight: 52,
+    justifyContent: 'center',
+  },
+  filtersScroll: {
+    flex: 1,
   },
   filters: {
     alignItems: 'center',
     height: 52,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
     gap: spacing.sm,
   },
   chip: {
@@ -316,12 +326,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     borderRadius: 18,
+    borderWidth: 1,
   },
   activeChip: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   idleChip: {
     backgroundColor: colors.surface,
+    borderColor: colors.border,
   },
   chipText: {
     ...typography.small,
