@@ -41,20 +41,23 @@ export async function getPushTokens() {
 
   const tokens = [];
 
-  try {
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId
-      ?? Constants.easConfig?.projectId
-      ?? undefined;
-    const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId
+    ?? Constants.easConfig?.projectId
+    ?? undefined;
 
-    tokens.push({
-      token: token.data,
-      tokenType: 'EXPO',
-      platform: Platform.OS,
-      deviceId: Constants.sessionId ?? Device.osInternalBuildId ?? null,
-    });
-  } catch (expoError) {
-    console.warn('Expo push token could not be created', expoError);
+  if (projectId) {
+    try {
+      const token = await Notifications.getExpoPushTokenAsync({ projectId });
+
+      tokens.push({
+        token: token.data,
+        tokenType: 'EXPO',
+        platform: Platform.OS,
+        deviceId: Constants.sessionId ?? Device.osInternalBuildId ?? null,
+      });
+    } catch (expoError) {
+      console.warn('Expo push token could not be created', expoError);
+    }
   }
 
   if (Platform.OS !== 'android') {
