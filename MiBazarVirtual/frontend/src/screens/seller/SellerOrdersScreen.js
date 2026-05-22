@@ -299,12 +299,13 @@ const styles = StyleSheet.create({
   },
   filtersScroll: {
     flexGrow: 0,
-    maxHeight: 52,
+    height: 52,
   },
   filters: {
     alignItems: 'center',
+    height: 52,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingVertical: spacing.xs,
     gap: spacing.sm,
   },
   chip: {
