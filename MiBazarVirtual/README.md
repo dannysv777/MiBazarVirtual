@@ -4,14 +4,16 @@ Marketplace de alimentos desarrollado como proyecto de grado de Ingenieria en Si
 
 ## Estado Actual
 
-El backend ya esta desplegado en Railway y expone datos reales de demostracion. El proyecto ya incluye catalogo, recomendaciones, favoritos, chat, notificaciones internas, carrito multi-tienda, pedidos multi-vendedor, flujo de vendedor, flujo de repartidor y estructura visual de billetera/pagos.
+El backend ya esta desplegado en Railway y expone datos reales de demostracion. El proyecto ya incluye catalogo, recomendaciones, favoritos, chat en tiempo real, notificaciones internas y push Android, carrito multi-tienda, pedidos multi-vendedor, flujo de vendedor, flujo de repartidor y estructura visual de billetera/pagos.
 
 - Backend publico: https://mibazarvirtual-production.up.railway.app
 - Health check: https://mibazarvirtual-production.up.railway.app/actuator/health
 - Base de datos: MySQL en Railway
 - Migraciones: Flyway
 - Deploy: Railway conectado al repositorio GitHub
-- Resumen para presentacion: `docs/estado-actual-implementacion.md`
+- Resumen detallado para presentacion: `docs/estado-actual-implementacion.md`
+- Push Android y prueba de Railway: `docs/push-notifications.md`
+- APK Android para demo: `docs/android-apk-build.md`
 
 ## Stack
 
@@ -23,6 +25,119 @@ El backend ya esta desplegado en Railway y expone datos reales de demostracion. 
 - Chat: Spring WebSockets + STOMP
 - Frontend: React Native + Expo
 - Deploy: Railway
+
+## Resumen Para Exponer
+
+MiBazarVirtual se plantea como un marketplace movil para un mercado municipal. No se limita a mostrar productos: integra compradores, vendedores y repartidores en un mismo flujo.
+
+Puntos fuertes que se pueden demostrar:
+
+- El comprador descubre productos y tiendas con recomendaciones, favoritos y busqueda.
+- El carrito acepta productos de varias tiendas y arma un solo pedido multi-vendedor.
+- Cada vendedor confirma o rechaza solo sus items; la entrega ya no depende del vendedor.
+- El repartidor acepta pedidos confirmados, marca recoleccion y entrega.
+- El chat permite conversar en tiempo real sobre productos o pedidos.
+- Las notificaciones internas y push avisan mensajes, pedidos y eventos relevantes.
+- La billetera y cuenta bancaria dejan estructura lista para pagos futuros sin procesar dinero real todavia.
+
+### Como Se Divide El Sistema
+
+```text
+React Native + Expo
+  -> pantallas, navegacion por rol, Context API, AsyncStorage, Axios
+
+Spring Boot
+  -> reglas de negocio, seguridad JWT, REST, WebSocket/STOMP, notificaciones
+
+MySQL + Flyway
+  -> persistencia, migraciones versionadas y datos demo
+
+Railway + Cloudinary + Firebase
+  -> despliegue backend, imagenes y push Android
+```
+
+### Manejo De Estado En Frontend
+
+El frontend usa `useState` para estado local de cada pantalla y `Context API` cuando varios modulos necesitan compartir datos.
+
+Contextos principales:
+
+| Contexto | Responsabilidad |
+| --- | --- |
+| `AuthContext` | Sesion, usuario autenticado, rol y login/logout. |
+| `CartContext` | Items del carrito, agrupacion por tienda, cantidades, subtotal y total. |
+| `ChatContext` | Conexion STOMP, mensajes no leidos y suscripciones a conversaciones. |
+| `NotificationContext` | Contador no leido, registro de push tokens y refresco de notificaciones. |
+| `ToastContext` | Feedback visual reutilizable para acciones exitosas o errores. |
+
+Persistencia local con `AsyncStorage`:
+
+- Tokens de sesion y refresh.
+- Carrito separado por usuario.
+- Compra semanal y dia de recordatorio.
+- Preferencias simples y apoyo a recomendaciones.
+
+Idea para explicarlo:
+
+> Usamos estado local cuando solo una pantalla lo necesita y contextos cuando el dato debe sobrevivir a la navegacion o afectar varias pantallas, como sesion, carrito, chat y notificaciones.
+
+### Base De Datos
+
+La base es MySQL. El backend usa JPA/Hibernate para mapear entidades y Flyway para evolucionar el esquema sin editar migraciones ya desplegadas.
+
+Tablas y relaciones notorias:
+
+- `users`, `stores`, `products`, `categories` para catalogo y roles.
+- `orders` y `order_items` para pedidos multi-vendedor.
+- `conversations` y `messages` para chat persistente.
+- `notifications` y `push_tokens` para avisos internos y push.
+- `favorites`, `saved_cards`, `seller_bank_accounts`, `order_payments` para experiencia de usuario y estructura futura de pagos.
+
+Los items de pedido guardan su tienda y su estado propio. Por eso un pedido puede tener varios vendedores y cada vendedor responde solo por sus productos.
+
+### Mensajeria
+
+La mensajeria mezcla REST y WebSocket:
+
+1. REST crea o recupera conversaciones y carga historial.
+2. Al enviar, el backend guarda primero el mensaje en MySQL.
+3. STOMP publica el nuevo mensaje al canal de la conversacion para que aparezca en tiempo real.
+4. El receptor obtiene contador de no leidos y una notificacion `NEW_MESSAGE`.
+
+Esto permite conservar historial aunque el usuario se desconecte, pero seguir teniendo experiencia en tiempo real cuando esta conectado.
+
+### Notificaciones Internas Y Push
+
+El backend centraliza avisos en `NotificationService`.
+
+Flujo:
+
+1. Una accion de negocio ocurre, por ejemplo mensaje nuevo o cambio de pedido.
+2. Se crea una notificacion interna en MySQL.
+3. `NotificationContext` actualiza badges y bandeja en frontend.
+4. Si el usuario tiene token registrado, el backend intenta push.
+
+Push actual:
+
+- Android registra token nativo FCM y el backend envia con Firebase Admin desde Railway.
+- Railway guarda la credencial privada en `FIREBASE_SERVICE_ACCOUNT_JSON` o `FIREBASE_SERVICE_ACCOUNT_BASE64`.
+- El endpoint `POST /api/push-tokens/test` permite probar si existe token Android y si Firebase esta configurado.
+- iOS conserva la base para integracion futura por Expo/APNs, pero la demo push se enfoca en Android.
+
+### Seguridad Y API
+
+- Spring Security protege endpoints con JWT.
+- Axios adjunta `Authorization: Bearer <accessToken>` a rutas protegidas.
+- WebSocket valida JWT en el frame STOMP `CONNECT`.
+- Las pantallas usan archivos de `frontend/src/api` para llamadas HTTP, de modo que la UI no quede acoplada a Axios directamente.
+
+### Guion Corto De Demo
+
+1. Entrar como comprador, mostrar home, producto, favorito, chat y carrito multi-tienda.
+2. Confirmar pedido y mostrar la pantalla de confirmacion.
+3. Entrar como vendedor, mostrar productos, tienda y pedidos recibidos; confirmar items.
+4. Entrar como delivery, aceptar pedido y avanzar a entrega.
+5. Mostrar notificaciones, chat y la estructura de billetera/cuenta bancaria.
 
 ## Cloudinary
 
@@ -75,13 +190,15 @@ Usuario: root
 Password: 12345
 ```
 
-Flyway crea tablas y carga los datos demo automaticamente:
+Flyway crea tablas, aplica cambios incrementales y carga datos demo automaticamente. Las primeras migraciones son:
 
 ```text
 V1__initial_schema.sql
 V2__seed_demo_data.sql
 V3__views_and_triggers.sql
 ```
+
+El esquema actual ya incluye migraciones posteriores para favoritos, notificaciones, pedidos multi-vendedor, delivery, wallet, conversaciones directas y push tokens. Regla del equipo: si una migracion ya se ejecuto en produccion, no se edita; se crea una nueva.
 
 ## Endpoints Publicos
 
@@ -197,6 +314,38 @@ Subscribe typing: /topic/conversation/{conversationId}/typing
 
 El WebSocket requiere JWT en el frame `CONNECT` usando header `Authorization` o `token`.
 
+## Notificaciones
+
+Notificaciones internas:
+
+```text
+GET    /api/notifications
+GET    /api/notifications/unread-count
+PATCH  /api/notifications/read-all
+PATCH  /api/notifications/{notificationId}/read
+DELETE /api/notifications/{notificationId}
+```
+
+Push tokens:
+
+```text
+POST   /api/push-tokens
+DELETE /api/push-tokens
+POST   /api/push-tokens/test
+```
+
+Tipos de aviso importantes:
+
+```text
+NEW_MESSAGE
+NEW_ORDER_RECEIVED
+ORDER_CONFIRMED
+ORDER_IN_PROGRESS
+ORDER_DELIVERED
+DELIVERY_AVAILABLE
+PRODUCT_BACK_IN_STOCK
+```
+
 ## Postman
 
 Coleccion:
@@ -232,6 +381,9 @@ DATABASE_PASSWORD=<mysql_password>
 JWT_SECRET=<secret_largo_minimo_32_caracteres>
 JWT_EXPIRATION=86400000
 JWT_REFRESH_EXPIRATION=604800000
+FIREBASE_SERVICE_ACCOUNT_JSON=<json_admin_firebase_para_push_android>
+# Alternativa si Railway requiere una sola linea:
+FIREBASE_SERVICE_ACCOUNT_BASE64=<json_admin_firebase_en_base64>
 ```
 
 En Railway no usar `MYSQL_URL` directamente como `DATABASE_URL`, porque suele venir como `mysql://...`. Spring Boot necesita formato JDBC: `jdbc:mysql://...`.
@@ -239,7 +391,8 @@ En Railway no usar `MYSQL_URL` directamente como `DATABASE_URL`, porque suele ve
 ## Pendientes Proximos
 
 - Probar el flujo completo comprador -> vendedor -> delivery en dispositivos reales.
-- Conectar notificaciones push cuando se implemente el modulo correspondiente.
+- Validar push Android en la APK final de presentacion.
+- Completar push iOS con Expo/APNs si la demo futura lo requiere.
 - Agregar reportes reales para vendedores.
 - Endurecer pruebas automatizadas para pedidos multi-vendedor.
 - Integrar Stripe u otro proveedor cuando se active pago real.
