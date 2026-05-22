@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, spacing, typography } from '../../theme';
@@ -21,7 +22,9 @@ export default function SplashScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" backgroundColor="transparent" translucent />
       <Animated.View style={[styles.content, { transform: [{ scale }] }]}>
-        <Text style={styles.emoji}>🛒</Text>
+        <View style={styles.iconWrap}>
+          <Ionicons name="basket-outline" size={48} color={colors.surface} />
+        </View>
         <Text style={styles.title}>MiBazarVirtual</Text>
         <Text style={styles.subtitle}>Tu mercado en un solo lugar</Text>
       </Animated.View>
@@ -39,8 +42,13 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: 64,
+  iconWrap: {
+    width: 84,
+    height: 84,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 42,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     marginBottom: spacing.sm,
   },
   title: {

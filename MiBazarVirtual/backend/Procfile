@@ -1,1 +1,1 @@
-web: java -Xmx384m -XX:MaxRAMPercentage=70 -jar target/backend-0.0.1-SNAPSHOT.jar
+web: java -Xms96m -Xmx256m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError -jar target/backend-0.0.1-SNAPSHOT.jar

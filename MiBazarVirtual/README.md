@@ -363,13 +363,15 @@ Railway:   https://mibazarvirtual-production.up.railway.app
 
 ## Railway
 
-El servicio backend debe usar:
+El servicio backend debe usar la carpeta raiz del backend. El repo incluye `backend/Procfile` con limites JVM para Railway:
 
 ```text
 Root Directory: MiBazarVirtual/backend
 Build Command: mvn clean package -DskipTests
-Start Command: java -jar target/backend-0.0.1-SNAPSHOT.jar
+Procfile: java -Xms96m -Xmx256m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError -jar target/backend-0.0.1-SNAPSHOT.jar
 ```
+
+Si Railway tiene un `Start Command` manual en el panel, ese comando puede reemplazar el `Procfile`. En ese caso usar el mismo comando con limites JVM o dejar el Start Command vacio para que Railpack tome el `Procfile`.
 
 Variables del backend:
 

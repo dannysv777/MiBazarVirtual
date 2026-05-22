@@ -8,7 +8,8 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import SplashScreen from '../screens/auth/SplashScreen';
 
 const Stack = createStackNavigator();
-const ONBOARDING_KEY = 'mibazarvirtual:onboarding_seen';
+// Versioned so the final APK can show onboarding once after older local test builds.
+const ONBOARDING_KEY = 'mibazarvirtual:onboarding_seen:v2';
 
 export default function AuthStack() {
   const [loading, setLoading] = useState(true);
@@ -16,9 +17,14 @@ export default function AuthStack() {
 
   useEffect(() => {
     const loadOnboardingState = async () => {
-      const value = await AsyncStorage.getItem(ONBOARDING_KEY);
-      setHasSeenOnboarding(value === 'true');
-      setLoading(false);
+      try {
+        const value = await AsyncStorage.getItem(ONBOARDING_KEY);
+        setHasSeenOnboarding(value === 'true');
+      } catch (error) {
+        setHasSeenOnboarding(false);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadOnboardingState();
