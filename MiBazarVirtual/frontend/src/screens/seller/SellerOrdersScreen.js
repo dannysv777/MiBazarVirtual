@@ -238,13 +238,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   statsRow: {
+    alignItems: 'center',
+    height: scale(124),
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
   },
   statsScroll: {
     flexGrow: 0,
-    maxHeight: scale(124),
+    height: scale(124),
   },
   statCard: {
     width: scale(148),
@@ -258,7 +259,6 @@ const styles = StyleSheet.create({
   },
   statCardActive: {
     borderColor: colors.primary,
-    borderWidth: 2,
   },
   pendingStat: {
     backgroundColor: '#FFF6E8',
@@ -300,6 +300,7 @@ const styles = StyleSheet.create({
   filtersScroll: {
     flexGrow: 0,
     height: 52,
+    minHeight: 52,
   },
   filters: {
     alignItems: 'center',
