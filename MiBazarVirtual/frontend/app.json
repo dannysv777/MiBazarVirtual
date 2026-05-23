@@ -5,11 +5,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "splash": { "backgroundColor": "#1B4332" },
+    "splash": {
+      "backgroundColor": "#1B4332"
+    },
     "android": {
       "package": "com.services",
       "googleServicesFile": "./google-services.json",
-      "adaptiveIcon": { "backgroundColor": "#1B4332" }
+      "adaptiveIcon": {
+        "backgroundColor": "#1B4332"
+      }
     },
     "androidStatusBar": {
       "backgroundColor": "#00000000",
@@ -40,11 +44,15 @@
           "photosPermission": "MiBazarVirtual usa tu galeria para seleccionar fotos de productos.",
           "cameraPermission": "MiBazarVirtual usa la camara para tomar fotos de tus productos."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "firebaseProjectId": "mi-bazar-eee41",
-      "firebaseSenderId": "727983217175"
+      "firebaseSenderId": "727983217175",
+      "eas": {
+        "projectId": "3e809ce7-3313-42d2-8125-5ed677fa2572"
+      }
     }
   }
 }
