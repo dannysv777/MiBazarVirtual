@@ -28,6 +28,12 @@ const getOtherName = (conversation) => (
   conversation.otherParticipantUsername ?? conversation.otherUsername ?? conversation.sellerUsername ?? 'Tienda'
 );
 
+const getInitial = (user) => {
+  if (user?.fullName) return user.fullName[0].toUpperCase();
+  if (user?.username) return user.username[0].toUpperCase();
+  return '?';
+};
+
 const getConversationGroupKey = (conversation, user) => {
   if (conversation.conversationType && conversation.conversationType !== 'PRODUCT') {
     return `direct-${conversation.buyerId}-${conversation.sellerId}-${conversation.orderId ?? 'general'}`;
@@ -116,6 +122,10 @@ export default function ConversationsScreen({ navigation }) {
 
   const renderConversation = ({ item }) => {
     const otherUsername = getOtherName(item);
+    const otherParticipant = {
+      fullName: item.otherParticipantFullName,
+      username: otherUsername,
+    };
     const unread = Number(item.unreadCount ?? 0);
 
     return (
@@ -137,7 +147,7 @@ export default function ConversationsScreen({ navigation }) {
         <AppImage
           uri={item.otherParticipantProfileImage}
           style={styles.avatar}
-          fallbackEmoji={otherUsername.charAt(0).toUpperCase()}
+          fallbackEmoji={getInitial(otherParticipant)}
         />
         <View style={styles.conversationBody}>
           <View style={styles.conversationTop}>

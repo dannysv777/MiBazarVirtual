@@ -18,14 +18,18 @@ import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OrderCard from '../../components/orders/OrderCard';
 import { colors, spacing, typography } from '../../theme';
+import { formatDateTime } from '../../utils/formatters';
 import { getErrorMessage, getList } from '../../utils/apiResponse';
 import { scale } from '../../utils/responsive';
 
-const statusFilters = [
+const STATUS_FILTERS = [
   { key: 'ALL', label: 'Todos', emptyTitle: 'Aun no tienes pedidos recibidos' },
   { key: 'PENDING', label: 'Pendientes', emptyTitle: 'No tienes pedidos pendientes' },
-  { key: 'CONFIRMED', label: 'Confirmados', emptyTitle: 'No tienes pedidos confirmados' },
-  { key: 'DELIVERED', label: 'Entregados', emptyTitle: 'No tienes pedidos entregados al delivery' },
+  { key: 'CONFIRMED', label: 'Confirmado', emptyTitle: 'No tienes pedidos confirmados' },
+  { key: 'READY_FOR_PICKUP', label: 'Por recoger', emptyTitle: 'No tienes pedidos por recoger' },
+  { key: 'IN_PROGRESS', label: 'En camino', emptyTitle: 'No tienes pedidos en camino' },
+  { key: 'DELIVERED', label: 'Entregados', emptyTitle: 'No tienes pedidos entregados' },
+  { key: 'CANCELLED', label: 'Cancelados', emptyTitle: 'No tienes pedidos cancelados' },
 ];
 
 const statCards = [
@@ -61,7 +65,7 @@ const initialStats = {
   delivered: 0,
 };
 
-const emptyByStatus = statusFilters.reduce((acc, item) => ({ ...acc, [item.key]: item.emptyTitle }), {});
+const emptyByStatus = STATUS_FILTERS.reduce((acc, item) => ({ ...acc, [item.key]: item.emptyTitle }), {});
 
 export default function SellerOrdersScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
@@ -117,8 +121,12 @@ export default function SellerOrdersScreen({ navigation }) {
   );
 
   const filteredOrders = useMemo(() => (
-    activeStatus === 'ALL' ? orders : orders.filter((order) => getSellerStage(order) === activeStatus)
+    activeStatus === 'ALL' ? orders : orders.filter((order) => order.status === activeStatus)
   ), [activeStatus, orders]);
+
+  const getCountForStatus = (status) => (
+    orders.filter((order) => order.status === status).length
+  );
 
   const activeEmptyTitle = emptyByStatus[activeStatus] ?? 'Sin pedidos';
 
@@ -159,27 +167,33 @@ export default function SellerOrdersScreen({ navigation }) {
         ))}
       </ScrollView>
 
-      <View style={styles.filtersWrap}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersScroll}
-          contentContainerStyle={styles.filters}
-        >
-          {statusFilters.map((filter) => (
-            <TouchableOpacity
-              key={filter.key}
-              activeOpacity={0.85}
-              onPress={() => setActiveStatus(filter.key)}
-              style={[styles.chip, activeStatus === filter.key ? styles.activeChip : styles.idleChip]}
-            >
-              <Text style={[styles.chipText, activeStatus === filter.key ? styles.activeChipText : styles.idleChipText]}>
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filtersContainer}
+        style={styles.filtersScroll}
+      >
+        {STATUS_FILTERS.map((filter) => (
+          <TouchableOpacity
+            key={filter.key}
+            activeOpacity={0.85}
+            style={[
+              styles.filterChip,
+              activeStatus === filter.key && styles.filterChipActive,
+            ]}
+            onPress={() => setActiveStatus(filter.key)}
+          >
+            <Text style={[
+              styles.filterChipText,
+              activeStatus === filter.key && styles.filterChipTextActive,
+            ]}>
+              {filter.label}
+              {filter.key !== 'ALL' && getCountForStatus(filter.key) > 0
+                ? ` (${getCountForStatus(filter.key)})` : ''}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       {error ? (
         <View style={styles.errorCard}>
@@ -208,6 +222,7 @@ export default function SellerOrdersScreen({ navigation }) {
           renderItem={({ item }) => (
             <OrderCard
               order={item}
+              dateFormatter={formatDateTime}
               onPress={() => navigation.navigate('OrderDetail', {
                 orderId: item.id,
                 isSeller: true,
@@ -304,47 +319,38 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
-  filtersWrap: {
-    height: 52,
-    minHeight: 52,
-    maxHeight: 52,
-    justifyContent: 'center',
-  },
   filtersScroll: {
-    flex: 1,
+    maxHeight: scale(48),
+    flexGrow: 0,
   },
-  filters: {
-    alignItems: 'center',
-    height: 52,
+  filtersContainer: {
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     gap: spacing.sm,
-  },
-  chip: {
-    height: 38,
-    minWidth: 104,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: 18,
-    borderWidth: 1,
+    flexDirection: 'row',
   },
-  activeChip: {
+  filterChip: {
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(7),
+    borderRadius: scale(20),
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexShrink: 0,
+  },
+  filterChipActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  idleChip: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-  },
-  chipText: {
+  filterChipText: {
     ...typography.small,
-    fontWeight: '700',
-  },
-  activeChipText: {
-    color: colors.surface,
-  },
-  idleChipText: {
     color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: colors.surface,
+    fontWeight: '700',
   },
   listContent: {
     paddingTop: 0,

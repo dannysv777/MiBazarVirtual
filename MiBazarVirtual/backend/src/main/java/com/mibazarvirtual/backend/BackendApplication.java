@@ -14,10 +14,11 @@ public class BackendApplication {
 
 	@PostConstruct
 	void configureTimezone() {
-		TimeZone.setDefault(TimeZone.getTimeZone("America/Guatemala"));
+		TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
 	}
 
 	public static void main(String[] args) {
+		TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
 		SpringApplication.run(BackendApplication.class, args);
 	}
 

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -39,6 +40,7 @@ export default function OnboardingScreen({ navigation, onFinish }) {
   }).current;
 
   const finish = async () => {
+    await AsyncStorage.setItem('onboarding_completed', 'true');
     await onFinish?.();
     navigation.replace('Login');
   };

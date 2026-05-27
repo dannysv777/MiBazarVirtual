@@ -5,42 +5,36 @@ import { useEffect, useState } from 'react';
 import LoginScreen from '../screens/auth/LoginScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
-import SplashScreen from '../screens/auth/SplashScreen';
 
 const Stack = createStackNavigator();
-// Versioned so the final APK can show onboarding once after older local test builds.
-const ONBOARDING_KEY = 'mibazarvirtual:onboarding_seen:v2';
 
 export default function AuthStack() {
-  const [loading, setLoading] = useState(true);
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(null);
 
   useEffect(() => {
-    const loadOnboardingState = async () => {
+    const checkOnboarding = async () => {
       try {
-        const value = await AsyncStorage.getItem(ONBOARDING_KEY);
-        setHasSeenOnboarding(value === 'true');
-      } catch (error) {
-        setHasSeenOnboarding(false);
-      } finally {
-        setLoading(false);
+        const completed = await AsyncStorage.getItem('onboarding_completed');
+        setShowOnboarding(completed !== 'true');
+      } catch {
+        setShowOnboarding(false);
       }
     };
 
-    loadOnboardingState();
+    checkOnboarding();
   }, []);
 
   const markOnboardingSeen = async () => {
-    await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-    setHasSeenOnboarding(true);
+    await AsyncStorage.setItem('onboarding_completed', 'true');
+    setShowOnboarding(false);
   };
 
-  if (loading) {
-    return <SplashScreen />;
+  if (showOnboarding === null) {
+    return null;
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={hasSeenOnboarding ? 'Login' : 'Onboarding'}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={showOnboarding ? 'Onboarding' : 'Login'}>
       <Stack.Screen
         name="Onboarding"
       >

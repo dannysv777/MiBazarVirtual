@@ -8,7 +8,7 @@ const getItemCount = (order) => (
   order.items?.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0) ?? 0
 );
 
-export default function OrderCard({ order, onPress }) {
+export default function OrderCard({ order, onPress, dateFormatter = formatDate }) {
   const count = getItemCount(order);
 
   return (
@@ -18,7 +18,7 @@ export default function OrderCard({ order, onPress }) {
         <OrderStatusBadge status={order.status} />
       </View>
       <View style={styles.midRow}>
-        <Text style={styles.meta}>{formatDate(order.createdAt)}</Text>
+        <Text style={styles.meta}>{dateFormatter(order.createdAt)}</Text>
         <Text style={styles.meta}>{count} productos</Text>
       </View>
       <Text style={styles.total}>{formatPrice(order.total)}</Text>

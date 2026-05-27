@@ -22,7 +22,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import OrderStatusBadge from '../../components/orders/OrderStatusBadge';
 import { useToast } from '../../context/ToastContext';
 import { colors, shadows, spacing, typography } from '../../theme';
-import { formatDate, formatPrice } from '../../utils/formatters';
+import { formatDateTime, formatPrice } from '../../utils/formatters';
 import { getErrorMessage, getPayload } from '../../utils/apiResponse';
 
 const steps = [
@@ -197,7 +197,7 @@ export default function OrderDetailScreen({ navigation, route }) {
           </TouchableOpacity>
           <View style={styles.headerText}>
             <Text style={styles.title}>Pedido #{order.id}</Text>
-            <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
+            <Text style={styles.date}>{formatDateTime(order.createdAt)}</Text>
           </View>
           <OrderStatusBadge status={order.status} />
         </View>

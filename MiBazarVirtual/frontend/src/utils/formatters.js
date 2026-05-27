@@ -1,45 +1,66 @@
-export const formatPrice = (price) => `Q ${Number(price ?? 0).toFixed(2)}`;
-
-const APP_TIME_ZONE = 'America/Guatemala';
-const LOCAL_BACKEND_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/;
+const GUATEMALA_OFFSET = -6 * 60;
 
 export const parseAppDate = (date) => {
   if (!date) return null;
   if (date instanceof Date) return date;
 
-  // Older API responses serialized LocalDateTime without a zone. MySQL TIMESTAMP
-  // values are read through a UTC connection, so preserve that instant here.
-  const normalizedDate = typeof date === 'string' && LOCAL_BACKEND_TIMESTAMP.test(date)
-    ? `${date}Z`
-    : date;
-
-  return new Date(normalizedDate);
+  return new Date(date);
 };
 
-export const formatDate = (date) => (
-  (parseAppDate(date) ?? new Date()).toLocaleDateString('es-GT', {
+const toGuatemalaTime = (date) => {
+  const d = new Date(date);
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+  return new Date(utc + GUATEMALA_OFFSET * 60000);
+};
+
+export const formatPrice = (price) => `Q ${Number(price || 0).toFixed(2)}`;
+
+export const formatDate = (date) => {
+  if (!date) return '';
+  const d = toGuatemalaTime(date);
+  if (Number.isNaN(d.getTime())) return '';
+
+  return d.toLocaleDateString('es-GT', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  })
-);
+  });
+};
 
-export const formatAppTime = (date) => {
-  const parsedDate = parseAppDate(date);
-  if (!parsedDate || Number.isNaN(parsedDate.getTime())) return '';
+export const formatTime = (date) => {
+  if (!date) return '';
+  const d = toGuatemalaTime(date);
+  if (Number.isNaN(d.getTime())) return '';
 
-  return parsedDate.toLocaleTimeString('es-GT', {
+  return d.toLocaleTimeString('es-GT', {
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: APP_TIME_ZONE,
+    hour12: true,
+  });
+};
+
+export const formatDateTime = (date) => {
+  if (!date) return '';
+  const d = toGuatemalaTime(date);
+  if (Number.isNaN(d.getTime())) return '';
+
+  return d.toLocaleDateString('es-GT', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
   });
 };
 
 export const formatRelativeTime = (date) => {
-  const parsedDate = parseAppDate(date);
-  if (!parsedDate || Number.isNaN(parsedDate.getTime())) return '';
+  if (!date) return '';
+  const now = toGuatemalaTime(new Date());
+  const d = toGuatemalaTime(date);
+  if (Number.isNaN(d.getTime())) return '';
 
-  const diff = Math.max(0, Date.now() - parsedDate.getTime());
+  const diff = now.getTime() - d.getTime();
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
@@ -48,5 +69,8 @@ export const formatRelativeTime = (date) => {
   if (mins < 60) return `hace ${mins} min`;
   if (hours < 24) return `hace ${hours}h`;
   if (days === 1) return 'Ayer';
-  return formatDate(parsedDate);
+  if (days < 7) return `hace ${days} días`;
+  return formatDate(date);
 };
+
+export const formatAppTime = formatTime;

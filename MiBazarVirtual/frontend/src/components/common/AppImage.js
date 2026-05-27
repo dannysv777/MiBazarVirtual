@@ -5,6 +5,16 @@ import { Image } from 'expo-image';
 import { colors, typography } from '../../theme';
 import SkeletonLoader from './SkeletonLoader';
 
+const isValidUri = (uri) => {
+  if (!uri) return false;
+  if (typeof uri !== 'string') return false;
+  if (uri.trim() === '') return false;
+  if (uri === 'null') return false;
+  if (uri === 'undefined') return false;
+  if (!uri.startsWith('http')) return false;
+  return true;
+};
+
 export default function AppImage({
   uri,
   style,
@@ -13,12 +23,12 @@ export default function AppImage({
   fallbackLabel = null,
 }) {
   const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(Boolean(uri));
-  const shouldFallback = !uri || hasError;
+  const [isLoading, setIsLoading] = useState(isValidUri(uri));
+  const shouldFallback = !isValidUri(uri) || hasError;
 
   useEffect(() => {
     setHasError(false);
-    setIsLoading(Boolean(uri));
+    setIsLoading(isValidUri(uri));
   }, [uri]);
 
   if (shouldFallback) {

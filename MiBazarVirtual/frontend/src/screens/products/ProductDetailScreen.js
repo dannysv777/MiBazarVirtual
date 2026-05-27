@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Share,
   ScrollView,
   StyleSheet,
   Text,
@@ -153,6 +154,15 @@ export default function ProductDetailScreen({ navigation, route }) {
     addItem(product, quantity);
   };
 
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `${product.name} - ${formatPrice(product.price)}`,
+      });
+    } catch (shareError) {
+    }
+  };
+
   const handleChat = async () => {
     const sellerId = store?.sellerId ?? product?.sellerId;
 
@@ -225,27 +235,12 @@ export default function ProductDetailScreen({ navigation, route }) {
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
       <FocusAwareStatusBar style="light" backgroundColor="transparent" translucent />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.imageWrap}>
-          <AppImage uri={imageUrl} style={styles.image} fallbackEmoji="🍽️" />
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => navigation.goBack()}
-            style={[styles.backButton, { top: insets.top + spacing.sm }]}
-          >
-            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
-          {user?.role === 'BUYER' ? (
-            <FavoriteButton
-              productId={product.id}
-              initialIsFavorite={initialIsFavorite}
-              size={24}
-              style={[styles.favoriteButton, { top: insets.top + spacing.sm }]}
-              onChange={setInitialIsFavorite}
-            />
-          ) : null}
-        </View>
-
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <AppImage uri={imageUrl} style={styles.productImage} contentFit="cover" fallbackEmoji="🍽️" />
         <View style={styles.contentCard}>
           <AppBadge label={product.category?.name ?? product.categoryName ?? 'Producto'} variant="accent" />
           <Text style={styles.name}>{product.name}</Text>
@@ -310,6 +305,37 @@ export default function ProductDetailScreen({ navigation, route }) {
           ) : null}
         </View>
       </ScrollView>
+
+      <SafeAreaView style={styles.fixedHeader} pointerEvents="box-none">
+        <View style={styles.headerButtons} pointerEvents="box-none">
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.headerButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.surface} />
+          </TouchableOpacity>
+
+          <View style={styles.headerRightButtons} pointerEvents="box-none">
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.headerButton}
+              onPress={handleShare}
+            >
+              <Ionicons name="share-outline" size={22} color={colors.surface} />
+            </TouchableOpacity>
+            {user?.role === 'BUYER' ? (
+              <FavoriteButton
+                productId={product.id}
+                initialIsFavorite={initialIsFavorite}
+                size={22}
+                style={styles.headerButton}
+                onChange={setInitialIsFavorite}
+              />
+            ) : null}
+          </View>
+        </View>
+      </SafeAreaView>
 
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
         {canBuy ? (
@@ -378,46 +404,43 @@ function Indicator({ color, text }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
+  },
+  scroll: {
+    flex: 1,
   },
   scrollContent: {
     paddingBottom: 112,
   },
-  imageWrap: {
-    height: Math.max(hp(36), 280),
-    position: 'relative',
-    backgroundColor: colors.background,
-  },
-  image: {
+  productImage: {
     width: '100%',
-    height: '100%',
-  },
-  fallbackImage: {
     height: hp(35),
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
   },
-  fallbackEmoji: {
-    fontSize: 48,
-  },
-  backButton: {
+  fixedHeader: {
     position: 'absolute',
-    left: spacing.md,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  headerRightButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  headerButton: {
     width: scale(36),
     height: scale(36),
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: scale(18),
-    backgroundColor: colors.surface,
-    zIndex: 4,
-    elevation: 4,
-  },
-  favoriteButton: {
-    position: 'absolute',
-    right: spacing.md,
-    zIndex: 4,
-    elevation: 4,
+    backgroundColor: colors.overlay,
   },
   contentCard: {
     marginTop: -18,

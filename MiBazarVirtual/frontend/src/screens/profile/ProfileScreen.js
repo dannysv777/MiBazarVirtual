@@ -38,6 +38,12 @@ const roleVariant = {
   ADMIN: 'error',
 };
 
+const getInitial = (user) => {
+  if (user?.fullName) return user.fullName[0].toUpperCase();
+  if (user?.username) return user.username[0].toUpperCase();
+  return '?';
+};
+
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { logout, updateUser, user } = useAuth();
@@ -245,15 +251,11 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name={isEditing ? 'close' : 'pencil'} size={20} color={colors.surface} />
             </TouchableOpacity>
             <View style={styles.avatar}>
-              {profile?.profileImage || editForm.profileImage ? (
-                <AppImage
-                  uri={editForm.profileImage || profile?.profileImage}
-                  style={styles.avatarImage}
-                  fallbackEmoji="👤"
-                />
-              ) : (
-                <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
-              )}
+              <AppImage
+                uri={editForm.profileImage || profile?.profileImage}
+                style={styles.avatarImage}
+                fallbackEmoji={getInitial(profile)}
+              />
               {isEditing ? (
                 <TouchableOpacity
                   activeOpacity={0.8}

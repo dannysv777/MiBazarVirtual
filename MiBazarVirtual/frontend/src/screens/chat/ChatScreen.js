@@ -28,6 +28,12 @@ import { formatPrice } from '../../utils/formatters';
 import { getErrorMessage, getList, getPayload } from '../../utils/apiResponse';
 import { PRODUCT_CONTEXT_PREFIX } from '../../utils/chatMessage';
 
+const getInitial = (participant) => {
+  if (participant?.fullName) return participant.fullName[0].toUpperCase();
+  if (participant?.username) return participant.username[0].toUpperCase();
+  return '?';
+};
+
 const newestFirst = (items) => (
   [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 );
@@ -103,6 +109,11 @@ export default function ChatScreen({ navigation, route }) {
     if (contextProduct?.storeId) {
       navigation.navigate('StoreDetail', { storeId: contextProduct.storeId });
     }
+  };
+
+  const otherParticipant = {
+    fullName: route.params.otherFullName,
+    username: otherUsername,
   };
 
   const getParticipantSubtitle = () => {
@@ -336,7 +347,7 @@ export default function ChatScreen({ navigation, route }) {
             <AppImage
               uri={otherProfileImage}
               style={styles.avatarImage}
-              fallbackEmoji={otherUsername?.charAt(0)?.toUpperCase() ?? 'T'}
+              fallbackEmoji={getInitial(otherParticipant)}
             />
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.78} onPress={handleParticipantPress} style={styles.headerText}>
