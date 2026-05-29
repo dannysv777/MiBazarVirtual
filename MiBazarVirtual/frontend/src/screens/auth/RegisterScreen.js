@@ -89,10 +89,15 @@ export default function RegisterScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>Crea tu cuenta</Text>
         <Text style={styles.subtitle}>Elige cómo usarás MiBazarVirtual</Text>
 
@@ -183,6 +188,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
     paddingTop: spacing.xl,
+    paddingBottom: scale(120),
   },
   title: {
     ...typography.h2,

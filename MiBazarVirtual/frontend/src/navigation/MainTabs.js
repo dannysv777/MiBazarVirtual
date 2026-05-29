@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Animated, Keyboard, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -139,7 +139,7 @@ function CustomTabBar({ state, descriptors, navigation, cartPulseKey }) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const focusedRoute = state.routes[state.index];
   const nestedRouteName = getFocusedRouteNameFromRoute(focusedRoute);
-  const bottomInset = Math.max(insets.bottom, 0);
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 18 : 0);
   const tabWidth = barWidth > 0 ? barWidth / state.routes.length : 0;
 
   useEffect(() => {
@@ -177,7 +177,7 @@ function CustomTabBar({ state, descriptors, navigation, cartPulseKey }) {
 
   return (
     <View
-      style={[styles.tabBar, { height: 50 + bottomInset, paddingBottom: bottomInset > 0 ? bottomInset : 4 }]}
+      style={[styles.tabBar, { height: 54 + bottomInset, paddingBottom: bottomInset }]}
       onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
     >
       {tabWidth > 0 ? (

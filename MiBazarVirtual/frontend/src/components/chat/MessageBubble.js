@@ -56,7 +56,7 @@ export default function MessageBubble({ message, isMine, onProductPress, fallbac
         </Text>
         <View style={styles.metaRow}>
           <Text style={[styles.time, isMine ? styles.mineTime : styles.theirTime]}>
-            {formatTime(message.createdAt ?? Date.now())}
+            {formatTime(message.createdAt)}
           </Text>
           {isMine ? (
             <Ionicons

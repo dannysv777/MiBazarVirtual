@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as chatApi from '../../api/chatApi';
 import { getProduct } from '../../api/productsApi';
@@ -27,6 +27,7 @@ import { colors, spacing, typography } from '../../theme';
 import { formatPrice } from '../../utils/formatters';
 import { getErrorMessage, getList, getPayload } from '../../utils/apiResponse';
 import { PRODUCT_CONTEXT_PREFIX } from '../../utils/chatMessage';
+import { scale } from '../../utils/responsive';
 
 const getInitial = (participant) => {
   if (participant?.fullName) return participant.fullName[0].toUpperCase();
@@ -38,13 +39,54 @@ const newestFirst = (items) => (
   [...items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 );
 
-const normalizeIncomingMessage = (payload) => {
-  const message = payload?.data ?? payload?.message ?? payload;
-  const createdAt = message?.createdAt ?? new Date().toISOString();
+const TIMEZONE_SUFFIX = /(?:Z|[+-]\d{2}:?\d{2})$/;
+
+const normalizeUtcString = (value) => (
+  `${value.replace(TIMEZONE_SUFFIX, '')}Z`
+);
+
+const normalizeTimestamp = (value) => {
+  if (!value) return new Date().toISOString();
+
+  if (Array.isArray(value)) {
+    const [year, month, day, hour = 0, minute = 0, second = 0, nano = 0] = value;
+    return new Date(Date.UTC(year, month - 1, day, hour, minute, second, Math.floor(nano / 1000000))).toISOString();
+  }
+
+  if (typeof value === 'number') {
+    const milliseconds = value < 1000000000000 ? value * 1000 : value;
+    return new Date(milliseconds).toISOString();
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === 'string') {
+    return normalizeUtcString(value);
+  }
+
+  return new Date().toISOString();
+};
+
+const normalizeMessage = (msg) => {
+  if (!msg) return msg;
+  const createdAt = msg.createdAt ?? msg.created_at ?? msg.timestamp ?? msg.sentAt ?? msg.sent_at;
 
   return {
-    ...message,
-    id: message?.id ?? `${message?.senderId ?? 'sender'}-${createdAt}-${message?.content ?? ''}`,
+    ...msg,
+    createdAt: normalizeTimestamp(createdAt),
+  };
+};
+
+const normalizeIncomingMessage = (payload) => {
+  const message = payload?.data ?? payload?.message ?? payload;
+  const normalizedMessage = normalizeMessage(message);
+  const createdAt = normalizedMessage?.createdAt ?? new Date().toISOString();
+
+  return {
+    ...normalizedMessage,
+    id: normalizedMessage?.id ?? `${normalizedMessage?.senderId ?? 'sender'}-${createdAt}-${normalizedMessage?.content ?? ''}`,
     createdAt,
   };
 };
@@ -62,6 +104,7 @@ export default function ChatScreen({ navigation, route }) {
     otherProfileImage,
     returnToConversations,
   } = route.params;
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isConnected, subscribeToConversation, sendTyping, refreshUnreadCount } = useChat();
   const { showInfo, showError } = useToast();
@@ -172,7 +215,7 @@ export default function ChatScreen({ navigation, route }) {
 
     try {
       const response = await chatApi.getMessages(conversationId, { page: 0, size: 30 });
-      setMessages(newestFirst(getList(response)));
+      setMessages(newestFirst(getList(response).map(normalizeMessage)));
       refreshUnreadCount();
       scrollToNewest();
     } catch (historyError) {
@@ -247,7 +290,7 @@ export default function ChatScreen({ navigation, route }) {
             return filtered;
           }
 
-          return [confirmedMessage, ...filtered];
+          return [normalizeMessage(confirmedMessage), ...filtered];
         });
         refreshUnreadCount();
         scrollToNewest();
@@ -334,29 +377,28 @@ export default function ChatScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
+      <View style={styles.header}>
+        <TouchableOpacity activeOpacity={0.8} onPress={handleBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <TouchableOpacity activeOpacity={0.78} onPress={handleParticipantPress} style={styles.avatar}>
+          <AppImage
+            uri={otherProfileImage}
+            style={styles.avatarImage}
+            fallbackEmoji={getInitial(otherParticipant)}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity activeOpacity={0.78} onPress={handleParticipantPress} style={styles.headerText}>
+          <Text style={styles.otherName} numberOfLines={1}>{otherUsername}</Text>
+          <Text style={styles.productText}>{getParticipantSubtitle()}</Text>
+        </TouchableOpacity>
+        <View style={[styles.connectionDot, { backgroundColor: isConnected ? colors.success : colors.textLight }]} />
+      </View>
       <KeyboardAvoidingView
+        style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        style={styles.keyboardView}
+        keyboardVerticalOffset={0}
       >
-        <View style={styles.header}>
-          <TouchableOpacity activeOpacity={0.8} onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.78} onPress={handleParticipantPress} style={styles.avatar}>
-            <AppImage
-              uri={otherProfileImage}
-              style={styles.avatarImage}
-              fallbackEmoji={getInitial(otherParticipant)}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.78} onPress={handleParticipantPress} style={styles.headerText}>
-            <Text style={styles.otherName} numberOfLines={1}>{otherUsername}</Text>
-            <Text style={styles.productText}>{getParticipantSubtitle()}</Text>
-          </TouchableOpacity>
-          <View style={[styles.connectionDot, { backgroundColor: isConnected ? colors.success : colors.textLight }]} />
-        </View>
-
         {error ? (
           <View style={styles.errorCard}>
             <Ionicons name="alert-circle" size={18} color={colors.error} />
@@ -376,8 +418,13 @@ export default function ChatScreen({ navigation, route }) {
             ref={flatListRef}
             data={messages}
             inverted
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            keyboardShouldPersistTaps="handled"
             keyExtractor={(item, index) => `${item.id ?? item.createdAt ?? 'message'}-${index}`}
-            contentContainerStyle={styles.messagesContent}
+            contentContainerStyle={[
+              styles.messagesList,
+              { paddingBottom: spacing.sm },
+            ]}
             renderItem={({ item }) => (
               <MessageBubble
                 message={item}
@@ -386,6 +433,9 @@ export default function ChatScreen({ navigation, route }) {
                 fallbackProductId={productId}
               />
             )}
+            onLayout={() => {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+            }}
             ListHeaderComponent={isTyping ? <TypingIndicator /> : null}
             ListEmptyComponent={(
               <View style={styles.emptyChat}>
@@ -414,23 +464,31 @@ export default function ChatScreen({ navigation, route }) {
             </View>
           ) : null}
 
-          <View style={styles.inputBar}>
-          <TextInput
-            value={inputText}
-            onChangeText={handleChangeText}
-            placeholder="Escribe un mensaje..."
-            placeholderTextColor={colors.textLight}
-            multiline
-            style={styles.input}
-          />
-          <TouchableOpacity
-            activeOpacity={0.85}
-            disabled={!inputText.trim() || sending}
-            onPress={handleSend}
-            style={[styles.sendButton, inputText.trim() ? styles.sendButtonActive : styles.sendButtonDisabled]}
-          >
-            <Ionicons name="send" size={20} color={colors.surface} />
-          </TouchableOpacity>
+          <View style={[
+            styles.inputBar,
+            { paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, spacing.sm) : spacing.sm },
+          ]}>
+            <TextInput
+              value={inputText}
+              onChangeText={handleChangeText}
+              placeholder="Escribe un mensaje..."
+              placeholderTextColor={colors.textLight}
+              multiline
+              maxHeight={scale(100)}
+              returnKeyType="default"
+              style={styles.textInput}
+            />
+            <TouchableOpacity
+              activeOpacity={0.85}
+              disabled={!inputText.trim() || sending}
+              onPress={handleSend}
+              style={[
+                styles.sendButton,
+                { opacity: inputText.trim() ? 1 : 0.4 },
+              ]}
+            >
+              <Ionicons name="send" size={scale(20)} color={colors.surface} />
+            </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -478,7 +536,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  keyboardView: {
+  container: {
     flex: 1,
   },
   header: {
@@ -537,7 +595,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  messagesContent: {
+  messagesList: {
     flexGrow: 1,
     paddingVertical: spacing.md,
   },
@@ -610,31 +668,33 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: spacing.sm,
-    padding: spacing.sm,
-  },
-  input: {
-    ...typography.body,
-    flex: 1,
-    maxHeight: 100,
-    minHeight: 44,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 20,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+  },
+  textInput: {
+    flex: 1,
+    minHeight: scale(40),
+    maxHeight: scale(100),
     backgroundColor: colors.background,
+    borderRadius: scale(20),
+    paddingHorizontal: spacing.md,
+    paddingVertical: scale(10),
+    ...typography.body,
+    color: colors.textPrimary,
   },
   sendButton: {
-    width: 44,
-    height: 44,
+    width: scale(40),
+    height: scale(40),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22,
-  },
-  sendButtonActive: {
+    borderRadius: scale(20),
     backgroundColor: colors.primary,
-  },
-  sendButtonDisabled: {
-    backgroundColor: colors.textLight,
+    marginBottom: scale(2),
   },
   typingWrap: {
     alignItems: 'flex-start',

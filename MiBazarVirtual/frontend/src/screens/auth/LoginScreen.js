@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,11 +21,38 @@ import { hp, scale } from '../../utils/responsive';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
+  const scrollRef = useRef(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    let scrollTimer = null;
+
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setKeyboardVisible(true);
+      scrollTimer = setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: scale(75), animated: true });
+      }, 80);
+    });
+
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setKeyboardVisible(false);
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+
+    return () => {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -43,21 +71,26 @@ export default function LoginScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
+          ref={scrollRef}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            keyboardVisible && styles.scrollContentKeyboard,
+          ]}
         >
-          <View style={styles.topSection}>
-            <Text style={styles.logo}>🛒</Text>
+          <View style={[styles.topSection, keyboardVisible && styles.topSectionKeyboard]}>
+            <Text style={[styles.logo, keyboardVisible && styles.logoKeyboard]}>🛒</Text>
             <Text style={styles.brand}>MiBazarVirtual</Text>
-            <Text style={styles.tagline}>Tu mercado local</Text>
+            {!keyboardVisible ? <Text style={styles.tagline}>Tu mercado local</Text> : null}
           </View>
 
-          <View style={styles.form}>
+          <View style={[styles.form, keyboardVisible && styles.formKeyboard]}>
             <Text style={styles.title}>Bienvenido de nuevo</Text>
             <Text style={styles.subtitle}>Ingresa para continuar</Text>
 
@@ -112,6 +145,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     backgroundColor: colors.surface,
+    paddingBottom: scale(120),
+  },
+  scrollContentKeyboard: {
+    paddingBottom: scale(190),
   },
   topSection: {
     minHeight: hp(28),
@@ -122,9 +159,18 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: scale(32),
     paddingHorizontal: spacing.md,
   },
+  topSectionKeyboard: {
+    minHeight: hp(18),
+    borderBottomLeftRadius: scale(22),
+    borderBottomRightRadius: scale(22),
+  },
   logo: {
     fontSize: 48,
     marginBottom: spacing.xs,
+  },
+  logoKeyboard: {
+    fontSize: 30,
+    marginBottom: 0,
   },
   brand: {
     ...typography.h2,
@@ -138,6 +184,9 @@ const styles = StyleSheet.create({
   form: {
     flexGrow: 1,
     padding: spacing.md,
+  },
+  formKeyboard: {
+    paddingTop: spacing.sm,
   },
   title: {
     ...typography.h3,

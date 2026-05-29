@@ -152,7 +152,7 @@ export default function ConversationsScreen({ navigation }) {
         <View style={styles.conversationBody}>
           <View style={styles.conversationTop}>
             <Text style={styles.otherName} numberOfLines={1}>{otherUsername}</Text>
-            <Text style={styles.time}>{formatRelativeTime(item.lastMessageTime ?? item.updatedAt)}</Text>
+            <Text style={styles.time}>{formatRelativeTime(item.updatedAt)}</Text>
           </View>
           <Text style={styles.preview} numberOfLines={1}>
             {item.lastMessage ? getChatPreviewText(item.lastMessage) : 'Sin mensajes todavía'}

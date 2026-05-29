@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -128,89 +130,97 @@ export default function CartScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <FocusAwareStatusBar style="dark" backgroundColor="transparent" translucent />
-      <FlatList
-        data={itemsByStore}
-        keyExtractor={(group) => String(group.storeId ?? group.storeName)}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={(
-          <View style={styles.header}>
-            <Text style={styles.title}>Mi carrito</Text>
-            <Text style={styles.subtitle}>
-              {itemCount} productos de {itemsByStore.length} vendedores
-            </Text>
-            {user ? <Text style={styles.userText}>Pedido para {user.fullName ?? user.username}</Text> : null}
-          </View>
-        )}
-        renderItem={({ item: group }) => (
-          <StoreGroup
-            group={group}
-            onDelete={(productId) => {
-              Alert.alert('Eliminar producto', 'Deseas quitar este producto del carrito?', [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Eliminar', style: 'destructive', onPress: () => removeItem(productId) },
-              ]);
-            }}
-            onQuantityChange={(productId, qty) => updateQuantity(productId, qty)}
-          />
-        )}
-        ListFooterComponent={(
-          <View>
-            <DeliverySelector
-              value={deliveryType}
-              onChange={handleDeliveryChange}
-              multipleStores={hasMultipleStores}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <FlatList
+          data={itemsByStore}
+          keyExtractor={(group) => String(group.storeId ?? group.storeName)}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={(
+            <View style={styles.header}>
+              <Text style={styles.title}>Mi carrito</Text>
+              <Text style={styles.subtitle}>
+                {itemCount} productos de {itemsByStore.length} vendedores
+              </Text>
+              {user ? <Text style={styles.userText}>Pedido para {user.fullName ?? user.username}</Text> : null}
+            </View>
+          )}
+          renderItem={({ item: group }) => (
+            <StoreGroup
+              group={group}
+              onDelete={(productId) => {
+                Alert.alert('Eliminar producto', 'Deseas quitar este producto del carrito?', [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Eliminar', style: 'destructive', onPress: () => removeItem(productId) },
+                ]);
+              }}
+              onQuantityChange={(productId, qty) => updateQuantity(productId, qty)}
             />
+          )}
+          ListFooterComponent={(
+            <View>
+              <DeliverySelector
+                value={deliveryType}
+                onChange={handleDeliveryChange}
+                multipleStores={hasMultipleStores}
+              />
 
-            {deliveryType === 'DELIVERY' ? (
+              {deliveryType === 'DELIVERY' ? (
+                <View style={styles.inputWrap}>
+                  <AppInput
+                    multiline
+                    label="Direccion"
+                    placeholder="Direccion de entrega completa"
+                    value={address}
+                    onChangeText={setAddress}
+                  />
+                </View>
+              ) : null}
+
               <View style={styles.inputWrap}>
                 <AppInput
                   multiline
-                  label="Direccion"
-                  placeholder="Direccion de entrega completa"
-                  value={address}
-                  onChangeText={setAddress}
+                  label="Nota"
+                  placeholder="Nota para los vendedores (opcional)"
+                  value={note}
+                  onChangeText={setNote}
                 />
               </View>
-            ) : null}
 
-            <View style={styles.inputWrap}>
-              <AppInput
-                multiline
-                label="Nota"
-                placeholder="Nota para los vendedores (opcional)"
-                value={note}
-                onChangeText={setNote}
+              <OrderSummary
+                groups={itemsByStore}
+                subtotal={subtotal}
+                deliveryType={deliveryType}
+                total={orderTotal}
               />
-            </View>
 
-            <OrderSummary
-              groups={itemsByStore}
-              subtotal={subtotal}
-              deliveryType={deliveryType}
-              total={orderTotal}
-            />
-
-            <PaymentSection
-              value={paymentMethod}
-              onChange={setPaymentMethod}
-              defaultCard={defaultCard}
-              onAddCard={() => navigation.getParent()?.navigate('Perfil', { screen: 'Wallet' })}
-            />
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <View style={styles.submitWrap}>
-              <AppButton
-                title={`Confirmar pedido ${formatPrice(orderTotal)}`}
-                onPress={handleSubmit}
-                loading={loading}
-                disabled={isDisabled}
-                fullWidth
+              <PaymentSection
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                defaultCard={defaultCard}
+                onAddCard={() => navigation.getParent()?.navigate('Perfil', { screen: 'Wallet' })}
               />
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <View style={styles.submitWrap}>
+                <AppButton
+                  title={`Confirmar pedido ${formatPrice(orderTotal)}`}
+                  onPress={handleSubmit}
+                  loading={loading}
+                  disabled={isDisabled}
+                  fullWidth
+                />
+              </View>
             </View>
-          </View>
-        )}
-      />
+          )}
+        />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -386,8 +396,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  keyboardView: {
+    flex: 1,
+  },
   listContent: {
-    paddingBottom: spacing.xl,
+    paddingBottom: scale(120),
   },
   header: {
     padding: spacing.md,

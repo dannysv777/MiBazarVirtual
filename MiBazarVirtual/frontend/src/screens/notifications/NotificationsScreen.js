@@ -21,6 +21,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useToast } from '../../context/ToastContext';
 import { colors, spacing, typography } from '../../theme';
 import { getErrorMessage, getList } from '../../utils/apiResponse';
+import { formatRelativeTime } from '../../utils/formatters';
 
 const typeConfig = {
   ORDER_CONFIRMED: { emoji: '✅', bg: colors.accent },
@@ -160,7 +161,7 @@ export default function NotificationsScreen({ navigation }) {
               <Text style={[styles.cardTitle, !item.isRead && styles.cardTitleUnread]} numberOfLines={1}>
                 {item.title}
               </Text>
-              <Text style={styles.time}>{item.timeAgo}</Text>
+              <Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
             </View>
             <Text style={styles.cardSubtitle} numberOfLines={2}>{item.body}</Text>
           </View>

@@ -9,9 +9,9 @@ const isValidUri = (uri) => {
   if (!uri) return false;
   if (typeof uri !== 'string') return false;
   if (uri.trim() === '') return false;
-  if (uri === 'null') return false;
-  if (uri === 'undefined') return false;
-  if (!uri.startsWith('http')) return false;
+  if (uri.trim() === 'null') return false;
+  if (uri.trim() === 'undefined') return false;
+  if (!uri.trim().startsWith('http')) return false;
   return true;
 };
 
@@ -22,14 +22,15 @@ export default function AppImage({
   fallbackEmoji = '🍽️',
   fallbackLabel = null,
 }) {
+  const imageUri = typeof uri === 'string' ? uri.trim() : uri;
   const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(isValidUri(uri));
-  const shouldFallback = !isValidUri(uri) || hasError;
+  const [isLoading, setIsLoading] = useState(isValidUri(imageUri));
+  const shouldFallback = !isValidUri(imageUri) || hasError;
 
   useEffect(() => {
     setHasError(false);
-    setIsLoading(isValidUri(uri));
-  }, [uri]);
+    setIsLoading(isValidUri(imageUri));
+  }, [imageUri]);
 
   if (shouldFallback) {
     return (
@@ -43,7 +44,7 @@ export default function AppImage({
   return (
     <View style={[styles.wrap, style]}>
       <Image
-        source={{ uri }}
+        source={{ uri: imageUri }}
         style={styles.image}
         contentFit={contentFit}
         transition={300}

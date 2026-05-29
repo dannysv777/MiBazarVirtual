@@ -1,12 +1,8 @@
-export const getGreeting = () => {
-  const hourText = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Guatemala',
-    hour: '2-digit',
-    hour12: false,
-  }).format(new Date());
-  const hour = Number(hourText) % 24;
+import { getCurrentHour } from './formatters';
 
-  if (hour >= 5 && hour < 12) return { text: 'Buenos dias', emoji: '☀️' };
+export const getGreeting = () => {
+  const hour = getCurrentHour();
+  if (hour >= 5 && hour < 12) return { text: 'Buenos días', emoji: '☀️' };
   if (hour >= 12 && hour < 19) return { text: 'Buenas tardes', emoji: '🌤️' };
   return { text: 'Buenas noches', emoji: '🌙' };
 };

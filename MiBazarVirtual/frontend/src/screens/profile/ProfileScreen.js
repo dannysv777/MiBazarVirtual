@@ -31,6 +31,7 @@ import { useToast } from '../../context/ToastContext';
 import { colors, shadows, spacing, typography } from '../../theme';
 import { formatPrice } from '../../utils/formatters';
 import { getErrorMessage, getPayload } from '../../utils/apiResponse';
+import { scale } from '../../utils/responsive';
 
 const roleVariant = {
   BUYER: 'accent',
@@ -43,6 +44,25 @@ const getInitial = (user) => {
   if (user?.username) return user.username[0].toUpperCase();
   return '?';
 };
+
+const getProfileImage = (user) => (
+  user?.profileImage
+  ?? user?.profileImageUrl
+  ?? user?.profilePicture
+  ?? user?.avatarUrl
+  ?? user?.photoUrl
+  ?? user?.logoUrl
+  ?? ''
+);
+
+const getUploadedImageUrl = (uploaded) => (
+  uploaded?.url
+  ?? uploaded?.secureUrl
+  ?? uploaded?.secure_url
+  ?? uploaded?.imageUrl
+  ?? uploaded?.profileImage
+  ?? ''
+);
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -77,7 +97,7 @@ export default function ProfileScreen({ navigation }) {
       setEditForm({
         fullName: nextProfile?.fullName ?? '',
         phone: nextProfile?.phone ?? '',
-        profileImage: nextProfile?.profileImage ?? '',
+        profileImage: getProfileImage(nextProfile),
       });
 
       const requests = [profileApi.getAppInfo()];
@@ -159,9 +179,29 @@ export default function ProfileScreen({ navigation }) {
     setUploadingPhoto(true);
     try {
       const uploaded = await uploadImage(result.assets[0]);
-      setEditForm((current) => ({ ...current, profileImage: uploaded.url }));
-      setProfile((current) => ({ ...current, profileImage: uploaded.url }));
-      showSuccess('Foto de perfil subida');
+      const profileImage = getUploadedImageUrl(uploaded);
+
+      if (!profileImage) {
+        showError('La imagen se subio, pero no recibimos la URL de la foto.');
+        return;
+      }
+
+      const nextForm = {
+        fullName: editForm.fullName || profile?.fullName || profile?.username || 'Usuario',
+        phone: editForm.phone ?? profile?.phone ?? '',
+        profileImage,
+      };
+      const response = await profileApi.updateProfile(nextForm);
+      const updatedProfile = getPayload(response);
+
+      setEditForm({
+        fullName: updatedProfile?.fullName ?? nextForm.fullName,
+        phone: updatedProfile?.phone ?? nextForm.phone,
+        profileImage: getProfileImage(updatedProfile) || profileImage,
+      });
+      setProfile(updatedProfile);
+      updateUser?.(updatedProfile);
+      showSuccess('Foto de perfil actualizada');
     } catch (uploadError) {
       showError(getErrorMessage(uploadError, 'No pudimos subir la foto.'));
     } finally {
@@ -205,6 +245,7 @@ export default function ProfileScreen({ navigation }) {
 
   const role = String(profile?.role ?? 'BUYER').trim().toUpperCase();
   const displayName = profile?.fullName || profile?.username || 'Usuario';
+  const profileImageUri = editForm.profileImage || getProfileImage(profile) || getProfileImage(user) || myStore?.logoUrl;
   const headerContentOpacity = scrollY.interpolate({
     inputRange: [0, 54, 96],
     outputRange: [1, 0.25, 0],
@@ -219,7 +260,11 @@ export default function ProfileScreen({ navigation }) {
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
       <FocusAwareStatusBar style="light" backgroundColor="transparent" translucent />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <Animated.ScrollView
           refreshControl={(
             <RefreshControl
@@ -230,6 +275,7 @@ export default function ProfileScreen({ navigation }) {
             />
           )}
           contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
           onScroll={Animated.event(
@@ -252,7 +298,7 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
             <View style={styles.avatar}>
               <AppImage
-                uri={editForm.profileImage || profile?.profileImage}
+                uri={profileImageUri}
                 style={styles.avatarImage}
                 fallbackEmoji={getInitial(profile)}
               />
@@ -479,7 +525,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingBottom: spacing.xl,
+    paddingBottom: scale(120),
   },
   loadingWrap: {
     flex: 1,

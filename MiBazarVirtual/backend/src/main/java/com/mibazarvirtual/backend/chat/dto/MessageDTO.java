@@ -3,7 +3,7 @@ package com.mibazarvirtual.backend.chat.dto;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 // Forma segura y simple de exponer un mensaje al frontend, sin devolver la entidad completa.
 public record MessageDTO(
@@ -15,8 +15,6 @@ public record MessageDTO(
         OffsetDateTime createdAt,
         boolean isRead
 ) {
-    private static final ZoneId APP_ZONE = ZoneId.of("America/Guatemala");
-
     public MessageDTO(
             Long id,
             Long conversationId,
@@ -32,7 +30,7 @@ public record MessageDTO(
                 senderId,
                 senderUsername,
                 content,
-                createdAt == null ? null : createdAt.atZone(APP_ZONE).toOffsetDateTime(),
+                createdAt == null ? null : createdAt.atOffset(ZoneOffset.UTC),
                 isRead
         );
     }

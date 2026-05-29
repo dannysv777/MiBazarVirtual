@@ -125,7 +125,7 @@ export default function SellerOrdersScreen({ navigation }) {
   ), [activeStatus, orders]);
 
   const getCountForStatus = (status) => (
-    orders.filter((order) => order.status === status).length
+    status === 'ALL' ? orders.length : orders.filter((order) => order.status === status).length
   );
 
   const activeEmptyTitle = emptyByStatus[activeStatus] ?? 'Sin pedidos';
@@ -186,9 +186,9 @@ export default function SellerOrdersScreen({ navigation }) {
             <Text style={[
               styles.filterChipText,
               activeStatus === filter.key && styles.filterChipTextActive,
-            ]}>
+            ]} numberOfLines={1}>
               {filter.label}
-              {filter.key !== 'ALL' && getCountForStatus(filter.key) > 0
+              {getCountForStatus(filter.key) > 0
                 ? ` (${getCountForStatus(filter.key)})` : ''}
             </Text>
           </TouchableOpacity>
@@ -320,8 +320,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   filtersScroll: {
-    maxHeight: scale(48),
+    height: scale(54),
     flexGrow: 0,
+    backgroundColor: colors.background,
   },
   filtersContainer: {
     paddingHorizontal: spacing.md,
@@ -331,6 +332,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   filterChip: {
+    minWidth: scale(74),
+    minHeight: scale(34),
     paddingHorizontal: scale(14),
     paddingVertical: scale(7),
     borderRadius: scale(20),
@@ -338,6 +341,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: colors.primary,
