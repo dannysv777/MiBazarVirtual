@@ -437,6 +437,7 @@ export default function ChatScreen({ navigation, route }) {
               flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
             }}
             ListHeaderComponent={isTyping ? <TypingIndicator /> : null}
+            ListFooterComponent={<ChatRetentionNotice />}
             ListEmptyComponent={(
               <View style={styles.emptyChat}>
                 <Ionicons name="chatbubbles-outline" size={30} color={colors.textLight} />
@@ -493,6 +494,17 @@ export default function ChatScreen({ navigation, route }) {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function ChatRetentionNotice() {
+  return (
+    <View style={styles.retentionNotice}>
+      <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+      <Text style={styles.retentionNoticeText}>
+        Conversa con confianza dentro de MiBazarVirtual. Los mensajes desapareceran despues de 7 dias de enviados.
+      </Text>
+    </View>
   );
 }
 
@@ -598,6 +610,26 @@ const styles = StyleSheet.create({
   messagesList: {
     flexGrow: 1,
     paddingVertical: spacing.md,
+  },
+  retentionNotice: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    maxWidth: '88%',
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: scale(10),
+    backgroundColor: colors.surface,
+  },
+  retentionNoticeText: {
+    ...typography.tiny,
+    flex: 1,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: scale(16),
   },
   emptyChat: {
     flex: 1,

@@ -89,7 +89,7 @@ export default function SellerStoreScreen({ navigation }) {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect,
-      quality: 0.82,
+      quality: 0.55,
     });
 
     if (result.canceled || !result.assets?.length) {

@@ -37,7 +37,7 @@ export default function LoginScreen({ navigation }) {
     const showSubscription = Keyboard.addListener(showEvent, () => {
       setKeyboardVisible(true);
       scrollTimer = setTimeout(() => {
-        scrollRef.current?.scrollTo({ y: scale(75), animated: true });
+        scrollRef.current?.scrollTo({ y: scale(35), animated: true });
       }, 80);
     });
 
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     paddingBottom: scale(120),
   },
   scrollContentKeyboard: {
-    paddingBottom: scale(190),
+    paddingBottom: scale(150),
   },
   topSection: {
     minHeight: hp(28),
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   topSectionKeyboard: {
-    minHeight: hp(18),
+    minHeight: hp(22),
     borderBottomLeftRadius: scale(22),
     borderBottomRightRadius: scale(22),
   },

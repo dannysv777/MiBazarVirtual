@@ -101,7 +101,7 @@ export default function ProductFormScreen({ navigation, route, mode = 'create' }
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 0.82,
+      quality: 0.55,
     });
 
     if (result.canceled || !result.assets?.length) {

@@ -18,6 +18,7 @@ import * as ordersApi from '../../api/ordersApi';
 import AppImage from '../../components/common/AppImage';
 import EmptyState from '../../components/common/EmptyState';
 import FocusAwareStatusBar from '../../components/common/FocusAwareStatusBar';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import CategoryChip from '../../components/home/CategoryChip';
 import ProductCard from '../../components/home/ProductCard';
@@ -35,13 +36,14 @@ import { colors, spacing, typography } from '../../theme';
 import { formatPrice } from '../../utils/formatters';
 import { getFirstName, getGreeting } from '../../utils/greeting';
 import { analyzeOrderHistory } from '../../utils/recommendations';
-import { getErrorMessage, getList } from '../../utils/apiResponse';
+import { getErrorMessage, getList, getPageMeta } from '../../utils/apiResponse';
 import { scale } from '../../utils/responsive';
 import { isStoreOpen } from '../../utils/storeSchedule';
 
 const allCategory = { id: 0, name: 'Todos', icon: '✨' };
 const LAST_SEEN_STORES_KEY = 'mibazarvirtual:last_seen_stores';
 const HOME_REFRESH_INTERVAL = 5 * 60 * 1000;
+const DISCOVERY_PAGE_SIZE = 10;
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -53,6 +55,10 @@ export default function HomeScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [trendingProducts, setTrendingProducts] = useState([]);
+  const [randomProducts, setRandomProducts] = useState([]);
+  const [randomPage, setRandomPage] = useState(0);
+  const [randomHasMore, setRandomHasMore] = useState(true);
+  const [randomLoadingMore, setRandomLoadingMore] = useState(false);
   const [stores, setStores] = useState([]);
   const [frequentItems, setFrequentItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +68,7 @@ export default function HomeScreen({ navigation }) {
   const [sessionSeed] = useState(() => Math.random());
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastFetchTimeRef = useRef(0);
+  const randomLoadingMoreRef = useRef(false);
 
   const isBuyer = user?.role === 'BUYER';
   const firstName = getFirstName(user?.fullName) || user?.username || 'Invitado';
@@ -83,11 +90,12 @@ export default function HomeScreen({ navigation }) {
         ? recommendationsApi.getForYou(10)
         : recommendationsApi.getFeed(userId, 10, { seed: sessionSeed, excludeStoreIds });
 
-      const [categoriesResponse, productsResponse, storesResponse, trendingResponse, ordersResult] = await Promise.allSettled([
+      const [categoriesResponse, productsResponse, storesResponse, trendingResponse, randomResponse, ordersResult] = await Promise.allSettled([
         getCategories(),
         featuredRequest,
         recommendationsApi.getRecommendedStores(userId, 6, { seed: sessionSeed }),
         recommendationsApi.getTrending(null, 8),
+        getProducts({ page: 0, size: DISCOVERY_PAGE_SIZE, sortBy: 'newest' }),
         isBuyer && isAuthenticated ? ordersApi.getOrderHistory() : Promise.resolve(null),
       ]);
 
@@ -136,6 +144,22 @@ export default function HomeScreen({ navigation }) {
       }
       setTrendingProducts(nextTrendingProducts);
 
+      let nextRandomProducts = randomResponse.status === 'fulfilled' ? getList(randomResponse.value) : [];
+      let nextRandomMeta = randomResponse.status === 'fulfilled' ? getPageMeta(randomResponse.value) : { last: true };
+      if (!nextRandomProducts.length) {
+        try {
+          const fallbackRandomResponse = await getProducts({ page: 0, size: DISCOVERY_PAGE_SIZE, sortBy: 'newest' });
+          nextRandomProducts = getList(fallbackRandomResponse);
+          nextRandomMeta = getPageMeta(fallbackRandomResponse);
+        } catch (fallbackError) {
+          nextRandomProducts = [];
+          nextRandomMeta = { last: true };
+        }
+      }
+      setRandomProducts(nextRandomProducts);
+      setRandomPage(0);
+      setRandomHasMore(!nextRandomMeta.last && nextRandomProducts.length > 0);
+
       if (ordersResult.status === 'fulfilled' && ordersResult.value) {
         const orders = getList(ordersResult.value);
         const frequent = analyzeOrderHistory(orders);
@@ -149,6 +173,7 @@ export default function HomeScreen({ navigation }) {
         && productsResponse.status === 'rejected'
         && storesResponse.status === 'rejected'
         && trendingResponse.status === 'rejected'
+        && randomResponse.status === 'rejected'
       ) {
         throw productsResponse.reason;
       }
@@ -161,6 +186,40 @@ export default function HomeScreen({ navigation }) {
       setRefreshing(false);
     }
   }, [isAuthenticated, isBuyer, sessionSeed, user?.id]);
+
+  const loadMoreRandomProducts = useCallback(async () => {
+    if (loading || refreshing || randomLoadingMoreRef.current || randomLoadingMore || !randomHasMore) {
+      return;
+    }
+
+    randomLoadingMoreRef.current = true;
+    setRandomLoadingMore(true);
+    try {
+      const nextPage = randomPage + 1;
+      const response = await getProducts({
+        page: nextPage,
+        size: DISCOVERY_PAGE_SIZE,
+        sortBy: 'newest',
+      });
+      const nextProducts = getList(response);
+      const meta = getPageMeta(response);
+
+      setRandomProducts((current) => {
+        const seen = new Set(current.map((product) => product.id));
+        return [
+          ...current,
+          ...nextProducts.filter((product) => !seen.has(product.id)),
+        ];
+      });
+      setRandomPage(nextPage);
+      setRandomHasMore(!meta.last && nextProducts.length > 0);
+    } catch (moreError) {
+      setRandomHasMore(false);
+    } finally {
+      randomLoadingMoreRef.current = false;
+      setRandomLoadingMore(false);
+    }
+  }, [loading, randomHasMore, randomLoadingMore, randomPage, refreshing]);
 
   useFocusEffect(useCallback(() => {
     setGreeting(getGreeting());
@@ -210,6 +269,21 @@ export default function HomeScreen({ navigation }) {
     extrapolate: 'clamp',
   });
 
+  const handleHomeScroll = useCallback((event) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const nextCompact = contentOffset.y > 72;
+    setCompactStatusBar((current) => (current === nextCompact ? current : nextCompact));
+
+    if (!contentSize.height) {
+      return;
+    }
+
+    const scrollProgress = (contentOffset.y + layoutMeasurement.height) / contentSize.height;
+    if (scrollProgress >= 0.7) {
+      loadMoreRandomProducts();
+    }
+  }, [loadMoreRandomProducts]);
+
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
       <FocusAwareStatusBar style={compactStatusBar ? 'light' : 'dark'} backgroundColor="transparent" translucent />
@@ -222,10 +296,7 @@ export default function HomeScreen({ navigation }) {
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           {
             useNativeDriver: true,
-            listener: (event) => {
-              const nextCompact = event.nativeEvent.contentOffset.y > 72;
-              setCompactStatusBar((current) => (current === nextCompact ? current : nextCompact));
-            },
+            listener: handleHomeScroll,
           }
         )}
       >
@@ -343,6 +414,28 @@ export default function HomeScreen({ navigation }) {
         ) : (
           <EmptyState emoji="🏪" title="Sin tiendas" subtitle="Pronto verás tiendas disponibles." />
         )}
+
+        <SectionHeader title="Mas productos para descubrir" subtitle="Una mezcla fresca para seguir explorando" />
+        {loading ? (
+          <CardSkeletonRow />
+        ) : randomProducts.length ? (
+          <>
+            <View style={styles.discoveryGrid}>
+              {randomProducts.map((item) => (
+                <ProductCard
+                  key={item.id.toString()}
+                  product={item}
+                  onPress={() => navigation.navigate('ProductDetail', { productId: item.id })}
+                />
+              ))}
+            </View>
+            {randomLoadingMore ? (
+              <View style={styles.discoveryLoadingMore}>
+                <LoadingSpinner size="small" />
+              </View>
+            ) : null}
+          </>
+        ) : null}
       </Animated.ScrollView>
 
       <Animated.View
@@ -589,6 +682,16 @@ const styles = StyleSheet.create({
   },
   horizontalList: {
     paddingHorizontal: spacing.md,
+  },
+  discoveryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+  },
+  discoveryLoadingMore: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
   },
   skeletonRow: {
     flexDirection: 'row',

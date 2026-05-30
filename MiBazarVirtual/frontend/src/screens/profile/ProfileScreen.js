@@ -169,7 +169,7 @@ export default function ProfileScreen({ navigation }) {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.82,
+      quality: 0.55,
     });
 
     if (result.canceled || !result.assets?.length) {

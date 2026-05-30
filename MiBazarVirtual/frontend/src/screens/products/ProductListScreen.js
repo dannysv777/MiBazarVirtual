@@ -27,6 +27,7 @@ import { getErrorMessage, getList, getPageMeta } from '../../utils/apiResponse';
 import { clearHistory, getHistory, removeSearch, saveSearch } from '../../utils/searchHistory';
 
 const sortOptions = [
+  { key: 'trending', label: 'Tendencias', icon: '🔥' },
   { key: 'newest', label: 'Recientes', icon: '🕐' },
   { key: 'price_asc', label: 'Precio ↑', icon: '💰' },
   { key: 'price_desc', label: 'Precio ↓', icon: '💸' },
@@ -39,7 +40,7 @@ export default function ProductListScreen({ navigation, route }) {
   const [submittedQuery, setSubmittedQuery] = useState(params.query ?? '');
   const [categories, setCategories] = useState([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState(params.categoryId ?? null);
-  const [selectedSort, setSelectedSort] = useState('newest');
+  const [selectedSort, setSelectedSort] = useState('trending');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +74,7 @@ export default function ProductListScreen({ navigation, route }) {
 
     try {
       const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
-      const useDiscovery = !submittedQuery && !onlyInStock && selectedSort === 'newest' && nextPage === 0;
+      const useDiscovery = !submittedQuery && !onlyInStock && selectedSort === 'trending' && nextPage === 0;
       let nextProducts = [];
       let meta = { last: true };
 
@@ -90,7 +91,7 @@ export default function ProductListScreen({ navigation, route }) {
         if (selectedCategoryId && trendingProducts.length < 10) {
           const fallbackResponse = await getProducts({
             categoryId: selectedCategoryId,
-            sortBy: selectedSort,
+            sortBy: 'newest',
             page: 0,
             size: 20,
           });
@@ -103,7 +104,7 @@ export default function ProductListScreen({ navigation, route }) {
 
         if (!selectedCategoryId && !nextProducts.length) {
           const fallbackResponse = await getProducts({
-            sortBy: selectedSort,
+            sortBy: 'newest',
             page: 0,
             size: 20,
           });
@@ -112,10 +113,11 @@ export default function ProductListScreen({ navigation, route }) {
 
         setDiscoveryTitle(selectedCategoryId ? `Tendencias en ${selectedCategory?.name ?? 'esta categoria'}` : 'Tendencias');
       } else {
+        const effectiveSort = selectedSort === 'trending' ? 'newest' : selectedSort;
         const response = await getProducts({
           q: submittedQuery || undefined,
           categoryId: selectedCategoryId || undefined,
-          sortBy: selectedSort,
+          sortBy: effectiveSort,
           inStock: onlyInStock || undefined,
           page: nextPage,
           size: 20,

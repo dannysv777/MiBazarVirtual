@@ -1,4 +1,10 @@
+import * as ImageManipulator from 'expo-image-manipulator';
+
 import axiosInstance from './axiosConfig';
+
+const MAX_IMAGE_WIDTH = 1280;
+const MAX_IMAGE_HEIGHT = 1280;
+const JPEG_QUALITY = 0.72;
 
 const getFileName = (asset) => {
   if (asset.fileName) {
@@ -21,6 +27,54 @@ const getMimeType = (asset) => {
   return 'image/jpeg';
 };
 
+const getResizeAction = (asset) => {
+  const width = Number(asset?.width ?? 0);
+  const height = Number(asset?.height ?? 0);
+
+  if (!width || !height) {
+    return { resize: { width: MAX_IMAGE_WIDTH } };
+  }
+
+  if (width <= MAX_IMAGE_WIDTH && height <= MAX_IMAGE_HEIGHT) {
+    return null;
+  }
+
+  return width >= height
+    ? { resize: { width: MAX_IMAGE_WIDTH } }
+    : { resize: { height: MAX_IMAGE_HEIGHT } };
+};
+
+const optimizeImageAsset = async (asset) => {
+  if (!asset?.uri || asset.file) {
+    return asset;
+  }
+
+  const resizeAction = getResizeAction(asset);
+  const actions = resizeAction ? [resizeAction] : [];
+
+  try {
+    const optimized = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      actions,
+      {
+        compress: JPEG_QUALITY,
+        format: ImageManipulator.SaveFormat.JPEG,
+      }
+    );
+
+    return {
+      ...asset,
+      uri: optimized.uri,
+      fileName: `image-${Date.now()}.jpg`,
+      mimeType: 'image/jpeg',
+      width: optimized.width,
+      height: optimized.height,
+    };
+  } catch (optimizeError) {
+    return asset;
+  }
+};
+
 export const uploadImage = async (asset) => {
   if (!asset?.uri && !asset?.file) {
     throw {
@@ -32,15 +86,16 @@ export const uploadImage = async (asset) => {
     };
   }
 
+  const uploadAsset = await optimizeImageAsset(asset);
   const formData = new FormData();
 
-  if (asset.file) {
-    formData.append('file', asset.file);
+  if (uploadAsset.file) {
+    formData.append('file', uploadAsset.file);
   } else {
     formData.append('file', {
-      uri: asset.uri,
-      name: getFileName(asset),
-      type: getMimeType(asset),
+      uri: uploadAsset.uri,
+      name: getFileName(uploadAsset),
+      type: getMimeType(uploadAsset),
     });
   }
 

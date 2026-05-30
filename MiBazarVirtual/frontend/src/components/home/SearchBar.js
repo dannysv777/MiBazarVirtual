@@ -33,8 +33,10 @@ export default function SearchBar({
 
   if (onPress && !editable) {
     return (
-      <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
-        {content}
+      <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={styles.touchTarget}>
+        <View pointerEvents="none">
+          {content}
+        </View>
       </TouchableOpacity>
     );
   }
@@ -43,6 +45,9 @@ export default function SearchBar({
 }
 
 const styles = StyleSheet.create({
+  touchTarget: {
+    width: '100%',
+  },
   container: {
     minHeight: 48,
     flexDirection: 'row',

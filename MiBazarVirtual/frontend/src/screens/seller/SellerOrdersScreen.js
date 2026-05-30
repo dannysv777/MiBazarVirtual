@@ -173,7 +173,7 @@ export default function SellerOrdersScreen({ navigation }) {
         contentContainerStyle={styles.filtersContainer}
         style={styles.filtersScroll}
       >
-        {STATUS_FILTERS.map((filter) => (
+        {STATUS_FILTERS.filter((filter) => filter.key !== 'ALL').map((filter) => (
           <TouchableOpacity
             key={filter.key}
             activeOpacity={0.85}
@@ -188,7 +188,7 @@ export default function SellerOrdersScreen({ navigation }) {
               activeStatus === filter.key && styles.filterChipTextActive,
             ]} numberOfLines={1}>
               {filter.label}
-              {getCountForStatus(filter.key) > 0
+              {filter.key !== 'ALL' && getCountForStatus(filter.key) > 0
                 ? ` (${getCountForStatus(filter.key)})` : ''}
             </Text>
           </TouchableOpacity>
@@ -323,6 +323,7 @@ const styles = StyleSheet.create({
     height: scale(54),
     flexGrow: 0,
     backgroundColor: colors.background,
+    marginBottom: spacing.sm,
   },
   filtersContainer: {
     paddingHorizontal: spacing.md,
@@ -332,8 +333,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   filterChip: {
-    minWidth: scale(74),
-    minHeight: scale(34),
     paddingHorizontal: scale(14),
     paddingVertical: scale(7),
     borderRadius: scale(20),
@@ -341,8 +340,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: colors.primary,
@@ -358,7 +355,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listContent: {
-    paddingTop: 0,
+    paddingTop: spacing.sm,
     paddingBottom: 86,
   },
   emptyContent: {
